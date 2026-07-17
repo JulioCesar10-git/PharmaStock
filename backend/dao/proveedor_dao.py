@@ -123,21 +123,4 @@ class ProveedorDAO:
 
             print("Error al actualizar proveedor")
             print(e)
-            return False
-
-    @staticmethod
-    def eliminar(prov_id):
-        try:
-            sql = "DELETE FROM proveedores WHERE prov_id = %s"
-            conn = Conexion.obtener_conexion()
-            conn.rollback()
-            cur = conn.cursor()
-            cur.execute(sql, (prov_id,))
-            conn.commit()
-            cur.close()
-            return True
-        
-        except Exception as e:
-            print("Error al eliminar proveedor")
-            print(e)
             return False    
