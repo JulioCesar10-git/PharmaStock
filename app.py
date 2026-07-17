@@ -76,12 +76,28 @@ def actualizar_proveedor():
         print("Error al actualizar proveedor")
         print(e)
 
+def eliminar_proveedor():
+    try:
+        prov_id = int(input("ID del proveedor a eliminar: "))
+        proveedor = ProveedorDAO.obtener_por_id(prov_id)
+
+        if proveedor:
+            ProveedorDAO.eliminar(prov_id)
+            print("Proveedor eliminado con éxito")
+        else:
+            print("Proveedor no encontrado")
+
+    except Exception as e:
+        print("Error al eliminar proveedor")
+        print(e)
+
 def main():
     print("==== PHARMASTOCK ==== ") 
     print("Menu de opciones: ")
     print("1.- Ver proveedores")
     print("2.- Crear proveedor")
     print("3.- Actualizar proveedor")
+    print("4.- Eliminar proveedor")
 
     opc = int(input("Selecciona una opcion: "))
 
@@ -92,6 +108,8 @@ def main():
             crear_proveedor()
         case 3:
             actualizar_proveedor()
+        case 4:
+            eliminar_proveedor()
 
 if __name__ == "__main__":
     main()
