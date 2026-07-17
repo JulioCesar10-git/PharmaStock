@@ -123,7 +123,7 @@ class ProveedorDAO:
 
             print("Error al actualizar proveedor")
             print(e)
-            return False
+            return False    
 
     @staticmethod
     def eliminar(prov_id):
@@ -140,4 +140,4 @@ class ProveedorDAO:
         except Exception as e:
             print("Error al eliminar proveedor")
             print(e)
-            return False    
+            return False 
