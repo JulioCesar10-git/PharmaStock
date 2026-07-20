@@ -125,6 +125,90 @@ def crear_medicamento():
         print("Error al crear medicamento")
         print(e)
 
+def ver_medicamentos():
+    try:
+
+        medicamentos = MedicamentoDAO.obtener_todos()
+
+        print("=========== Medicamentos disponibles ===========")
+
+        if len(medicamentos) == 0:
+            print("No hay medicamentos registrados.")
+        else:
+            for m in medicamentos:
+                print("=======================================================================================")
+                print(
+                    f"ID: {m.med_id}, Código: {m.med_codBarras}, Nombre genérico: {m.med_nombreGen}, "
+                    f"Nombre comercial: {m.med_nombreComer}, Laboratorio: {m.med_lab}, "
+                    f"Origen: {m.med_origen}, Concentración: {m.med_concentracion}, "
+                    f"Forma farmacéutica: {m.med_formaFarma}, Vía: {m.med_viaAdmi}, "
+                    f"Lote: {m.med_lote}, Caducidad: {m.med_fechaCad}, "
+                    f"Fracción: {m.med_fraccion}, Precio: ${m.med_precio}, "
+                    f"Existencia: {m.med_existencia}, Proveedor ID: {m.prov_id}"
+                )
+                print("=======================================================================================")
+
+    except Exception as e:
+        print("Error al obtener medicamentos")
+        print(e)
+
+def buscar_medicamento():
+    try:
+
+        med_id = int(input("ID del medicamento: "))
+
+        m = MedicamentoDAO.obtener_por_id(med_id)
+
+        if m:
+            print("=======================================================================================")
+            print(
+                f"ID: {m.med_id}, Código: {m.med_codBarras}, Nombre genérico: {m.med_nombreGen}, "
+                f"Nombre comercial: {m.med_nombreComer}, Laboratorio: {m.med_lab}, "
+                f"Origen: {m.med_origen}, Concentración: {m.med_concentracion}, "
+                f"Forma farmacéutica: {m.med_formaFarma}, Vía: {m.med_viaAdmi}, "
+                f"Lote: {m.med_lote}, Caducidad: {m.med_fechaCad}, "
+                f"Fracción: {m.med_fraccion}, Precio: ${m.med_precio}, "
+                f"Existencia: {m.med_existencia}, Proveedor ID: {m.prov_id}"
+            )
+            print("=======================================================================================")
+        else:
+            print("Medicamento no encontrado")
+
+    except Exception as e:
+        print("Error al buscar medicamento")
+        print(e)
+
+def actualizar_medicamento():
+    try:
+
+        med_id = int(input("ID del medicamento a actualizar: "))
+        m = MedicamentoDAO.obtener_por_id(med_id)
+
+        if m:
+            m.med_codBarras = input("Nuevo código de barras: ")
+            m.med_nombreGen = input("Nuevo nombre genérico: ")
+            m.med_nombreComer = input("Nuevo nombre comercial: ")
+            m.med_lab = input("Nuevo laboratorio: ")
+            m.med_origen = input("Nuevo origen: ")
+            m.med_concentracion = input("Nueva concentración: ")
+            m.med_formaFarma = input("Nueva forma farmacéutica: ")
+            m.med_viaAdmi = input("Nueva vía de administración: ")
+            m.med_lote = input("Nuevo lote: ")
+            m.med_fechaCad = input("Nueva fecha de caducidad (YYYY-MM-DD): ")
+            m.med_fraccion = input("Nueva fracción: ")
+            m.med_precio = float(input("Nuevo precio: "))
+            m.med_existencia = int(input("Nueva existencia: "))
+            m.prov_id = int(input("Nuevo ID de proveedor: "))
+
+            MedicamentoDAO.actualizar(m)
+            print("Medicamento actualizado con éxito")
+        else:
+            print("Medicamento no encontrado")
+
+    except Exception as e:
+        print("Error al actualizar medicamento")
+        print(e)
+
 def main():
     print("==== PHARMASTOCK ==== ") 
     print("Menu de opciones: ")
