@@ -98,6 +98,38 @@ class MedicamentoDAO:
             print("Error al obtener medicamento")
             print(e)
             return None
+        
+    @staticmethod
+    def obtener_por_codigo_barras(codigo):
+        try:
+            sql = """
+
+                SELECT med_id, med_codBarras, med_nombreGen, med_nombreComer,
+                med_lab, med_origen, med_concentracion, med_formaFarma, med_viaAdmi,
+                med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id
+                FROM medicamentos WHERE med_codBarras = %s
+
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql, (codigo,))
+            f = cur.fetchone()
+            cur.close()
+            if f:
+                return Medicamento(
+                    med_id=f[0], med_codBarras=f[1], med_nombreGen=f[2],
+                    med_nombreComer=f[3], med_lab=f[4], med_origen=f[5],
+                    med_concentracion=f[6], med_formaFarma=f[7], med_viaAdmi=f[8],
+                    med_lote=f[9], med_fechaCad=f[10], med_fraccion=f[11],
+                    med_precio=f[12], med_existencia=f[13], prov_id=f[14]
+                )
+            return None
+        
+        except Exception as e:
+            print("Error al buscar por código de barras")
+            print(e)
+            return None
 
     @staticmethod
     def actualizar(med):
