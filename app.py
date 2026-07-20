@@ -1,7 +1,10 @@
 from backend.dao.proveedor_dao import ProveedorDAO
 from backend.models.proveedor import Proveedor
 
-# FUNCIONES PROVEEDOR
+from backend.dao.medicamento_dao import MedicamentoDAO
+from backend.models.medicamento import Medicamento
+
+# FUNCIONES DE PROVEEDOR
 def crear_proveedor():
     try:
         prov_nombre = input("Nombre del proveedor: ")
@@ -91,6 +94,37 @@ def eliminar_proveedor():
         print("Error al eliminar proveedor")
         print(e)
 
+# FUNCIONES DE MEDICAMENTOS
+def crear_medicamento():
+    try:
+
+        med_codBarras = input("Código de barras: ")
+        med_nombreGen = input("Nombre genérico: ")
+        med_nombreComer = input("Nombre comercial: ")
+        med_lab = input("Laboratorio: ")
+        med_origen = input("Origen: ")
+        med_concentracion = input("Concentración: ")
+        med_formaFarma = input("Forma farmacéutica: ")
+        med_viaAdmi = input("Vía de administración: ")
+        med_lote = input("Lote: ")
+        med_fechaCad = input("Fecha de caducidad (YYYY-MM-DD): ")
+        med_fraccion = input("Fracción: ")
+        med_precio = float(input("Precio: "))
+        med_existencia = int(input("Existencia: "))
+        prov_id = int(input("ID del proveedor: "))
+
+        nuevo = Medicamento(
+            med_codBarras, med_nombreGen, med_nombreComer, med_lab,
+            med_origen, med_concentracion, med_formaFarma, med_viaAdmi,
+            med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id
+        )
+        MedicamentoDAO.crear(nuevo)
+        print("Medicamento creado con éxito")
+
+    except Exception as e:
+        print("Error al crear medicamento")
+        print(e)
+
 def main():
     print("==== PHARMASTOCK ==== ") 
     print("Menu de opciones: ")
@@ -98,6 +132,7 @@ def main():
     print("2.- Crear proveedor")
     print("3.- Actualizar proveedor")
     print("4.- Eliminar proveedor")
+    print("5.- Insertar medicamento")
 
     opc = int(input("Selecciona una opcion: "))
 
@@ -110,6 +145,8 @@ def main():
             actualizar_proveedor()
         case 4:
             eliminar_proveedor()
+        case 5:
+            crear_medicamento()
 
 if __name__ == "__main__":
     main()
