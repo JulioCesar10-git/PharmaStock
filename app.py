@@ -209,6 +209,21 @@ def actualizar_medicamento():
         print("Error al actualizar medicamento")
         print(e)
 
+def eliminar_medicamento():
+    try:
+        med_id = int(input("ID del medicamento a eliminar: "))
+        m = MedicamentoDAO.obtener_por_id(med_id)
+
+        if m:
+            MedicamentoDAO.eliminar(med_id)
+            print("Medicamento eliminado con éxito")
+        else:
+            print("Medicamento no encontrado")
+
+    except Exception as e:
+        print("Error al eliminar medicamento")
+        print(e)
+
 def main():
     print("==== PHARMASTOCK ==== ") 
     print("Menu de opciones: ")
@@ -217,6 +232,9 @@ def main():
     print("3.- Actualizar proveedor")
     print("4.- Eliminar proveedor")
     print("5.- Insertar medicamento")
+    print("6.- Ver medicamentos")
+    print("7.- Actualizar medicamento")
+    print("8.- Eliminar medicamento")
 
     opc = int(input("Selecciona una opcion: "))
 
@@ -231,6 +249,12 @@ def main():
             eliminar_proveedor()
         case 5:
             crear_medicamento()
+        case 6:
+            ver_medicamentos()
+        case 7:
+            actualizar_medicamento()
+        case 8:
+            eliminar_medicamento()
 
 if __name__ == "__main__":
     main()

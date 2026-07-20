@@ -1,5 +1,5 @@
-from database.conexion import Conexion
-from models.medicamento import Medicamento
+from backend.database.conexion import Conexion
+from backend.models.medicamento import Medicamento
 
 class MedicamentoDAO:
     
@@ -131,6 +131,23 @@ class MedicamentoDAO:
         except Exception as e:
 
             print("Error al actualizar medicamento")
+            print(e)
+            return False
+        
+    @staticmethod
+    def eliminar(med_id):
+        try:
+            sql = "DELETE FROM medicamentos WHERE med_id = %s"
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql, (med_id,))
+            conn.commit()
+            cur.close()
+            return True
+        
+        except Exception as e:
+            print("Error al eliminar medicamento")
             print(e)
             return False
 
