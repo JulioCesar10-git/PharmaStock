@@ -64,7 +64,51 @@ class CategoriaDAO:
             if f:
                 return Categoria(cat_id=f[0], cat_nombre=f[1], cat_descripcion=f[2])
             return None
+        
         except Exception as e:
             print("Error al obtener categoria")
             print(e)
             return None
+    
+    @staticmethod
+    def actualizar(categoria):
+        try:
+
+            sql = """
+
+                UPDATE categorias
+                SET cat_nombre = %s, cat_descripcion = %s
+                WHERE cat_id = %s
+
+            """
+
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql, (categoria.cat_nombre, categoria.cat_descripcion, categoria.cat_id))
+            conn.commit()
+            cur.close()
+            return True
+        
+        except Exception as e:
+            print("Error al actualizar categoria")
+            print(e)
+            return False
+        
+    @staticmethod
+    def eliminar(cat_id):
+        try:
+
+            sql = "DELETE FROM categorias WHERE cat_id = %s"
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql, (cat_id))
+            conn.commit()
+            cur.close
+            return True
+        
+        except Exception as e:
+            print("Error al eliminar categoria")
+            print(e)
+            return False
