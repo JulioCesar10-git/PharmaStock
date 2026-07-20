@@ -182,4 +182,52 @@ class MedicamentoDAO:
             print("Error al eliminar medicamento")
             print(e)
             return False
+        
+    @staticmethod
+    def medicamentos_por_caducar():
+        try:
+            sql = """
 
+                SELECT med_id, med_nombreGen, med_fechaCad
+                FROM medicamentos
+                WHERE med_fechaCad <= CURRENT_DATE + INTERVAL '15 days'
+                AND med_fechaCad >= CURRENT_DATE
+
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql)
+            filas = cur.fetchall()
+            cur.close()
+            return [{"id": f[0], "nombre": f[1], "fecha_caducidad": f[2]} for f in filas]
+        
+        except Exception as e:
+            Conexion.obtener_conexion().rollback()
+            print("Error al obtener medicamentos por caducar")
+            print(e)
+            return []
+
+    @staticmethod
+    def medicamentos_bajo_stock():
+        try:
+            sql = """
+
+                SELECT med_id, med_nombreGen, med_existencia
+                FROM medicamentos
+                WHERE med_existencia < 10
+
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql)
+            filas = cur.fetchall()
+            cur.close()
+            return [{"id": f[0], "nombre": f[1], "existencia": f[2]} for f in filas]
+        
+        except Exception as e:
+            Conexion.obtener_conexion().rollback()
+            print("Error al obtener medicamentos con bajo stock")
+            print(e)
+            return []
