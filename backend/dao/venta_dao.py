@@ -74,3 +74,28 @@ class VentaDAO:
             print("Error al registrar la venta")
             print(e)
             return None
+        
+    @staticmethod
+    def corte_de_caja():
+        try:
+            sql = """
+                SELECT COUNT(*), COALESCE(SUM(venta_total), 0)
+                FROM ventas
+                WHERE DATE(venta_fecha) = CURRENT_DATE
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            resultado = cursor.fetchone()
+            cursor.close()
+
+            return {
+                "total_ventas": resultado[0],
+                "total_dinero": resultado[1]
+            }
+
+        except Exception as e:
+            print("Error al generar corte de caja")
+            print(e)
+            return None
