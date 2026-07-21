@@ -380,6 +380,23 @@ def ver_categorias():
         print("Error al obtener categorías")
         print(e)
 
+def actualizar_categoria():
+    try:
+        cat_id = int(input("ID de la categoría a actualizar: "))
+        c = CategoriaDAO.obtener_por_id(cat_id)
+
+        if c:
+            c.cat_nombre = input("Nuevo nombre: ")
+            c.cat_descripcion = input("Nueva descripción: ")
+            CategoriaDAO.actualizar(c)
+            print("Categoría actualizada con éxito")
+        else:
+            print("Categoría no encontrada")
+
+    except Exception as e:
+        print("Error al actualizar categoría")
+        print(e)
+
 def main():
     print("==== PHARMASTOCK ==== ") 
     print("Menu de opciones: ")
