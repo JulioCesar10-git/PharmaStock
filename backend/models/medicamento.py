@@ -3,9 +3,10 @@ class Medicamento:
     def __init__(self, med_codBarras, med_nombreGen, med_nombreComer, med_lab,
                  med_origen, med_concentracion, med_formaFarma, med_viaAdmi,
                  med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia,
-                 prov_id, med_id = None):
+                 prov_id, med_id = None, cat_id = None):
 
         self.med_id = med_id
+        self.cat_id = cat_id
         self.med_codBarras = med_codBarras
         self.med_nombreGen = med_nombreGen
         self.med_nombreComer = med_nombreComer

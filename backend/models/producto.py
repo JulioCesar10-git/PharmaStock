@@ -1,8 +1,9 @@
 class Producto:
 
-    def __init__(self, prod_codBarras, prod_nombre, prod_marca, prod_precio, prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, prod_id = None):
+    def __init__(self, prod_codBarras, prod_nombre, prod_marca, prod_precio, prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, prod_id = None, cat_id = None):
         
         self.prod_id = prod_id
+        self.cat_id = cat_id
         self.prod_codBarras = prod_codBarras
         self.prod_nombre = prod_nombre
         self.prod_marca = prod_marca

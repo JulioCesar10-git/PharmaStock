@@ -10,8 +10,8 @@ class ProductoDAO:
             sql = """
 
                 INSERT INTO productos (prod_codBarras, prod_nombre, prod_marca, prod_precio,
-                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING prod_id
 
             """
@@ -23,7 +23,7 @@ class ProductoDAO:
 
                 prod.prod_codBarras, prod.prod_nombre, prod.prod_marca,
                 prod.prod_precio, prod.prod_existencia, prod.prod_lote,
-                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id
+                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id, prod.cat_id
 
             ))
             prod.prod_id = cur.fetchone()[0]
@@ -42,7 +42,7 @@ class ProductoDAO:
             sql = """
 
                 SELECT prod_id, prod_codBarras, prod_nombre, prod_marca, prod_precio,
-                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id
+                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id
                 FROM productos
 
             """
@@ -56,7 +56,7 @@ class ProductoDAO:
                 prod_id=f[0], prod_codBarras=f[1], prod_nombre=f[2],
                 prod_marca=f[3], prod_precio=f[4], prod_existencia=f[5],
                 prod_lote=f[6], prod_fechaCad=f[7], prod_fraccion=f[8],
-                prov_id=f[9]
+                prov_id=f[9], cat_id=f[10]
             ) for f in filas]
         
         except Exception as e:
@@ -70,7 +70,7 @@ class ProductoDAO:
             sql = """
 
                 SELECT prod_id, prod_codBarras, prod_nombre, prod_marca, prod_precio,
-                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id
+                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id
                 FROM productos WHERE prod_id = %s
 
             """
@@ -85,7 +85,7 @@ class ProductoDAO:
                     prod_id=f[0], prod_codBarras=f[1], prod_nombre=f[2],
                     prod_marca=f[3], prod_precio=f[4], prod_existencia=f[5],
                     prod_lote=f[6], prod_fechaCad=f[7], prod_fraccion=f[8],
-                    prov_id=f[9]
+                    prov_id=f[9], cat_id=f[10]
                 )
             return None
         
@@ -102,8 +102,7 @@ class ProductoDAO:
                 UPDATE productos
                 SET prod_codBarras = %s, prod_nombre = %s, prod_marca = %s,
                 prod_precio = %s, prod_existencia = %s, prod_lote = %s, prod_fechaCad = %s,
-                prod_fraccion = %s, prov_id = %s
-
+                prod_fraccion = %s, prov_id = %s, cat_id = %s
                 WHERE prod_id=%s
 
             """
@@ -114,7 +113,7 @@ class ProductoDAO:
 
                 prod.prod_codBarras, prod.prod_nombre, prod.prod_marca,
                 prod.prod_precio, prod.prod_existencia, prod.prod_lote,
-                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id, prod.prod_id
+                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id, prod.prod_id, prod.cat_id
 
             ))
             conn.commit()
