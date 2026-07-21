@@ -365,6 +365,20 @@ def crear_categoria():
         print("Error al crear categoria")
         print(e)
 
+def ver_categorias():
+    try:
+        categorias = CategoriaDAO.obtener_todos()
+
+        if len(categorias) == 0:
+            print("No hay categorías registradas.")
+        else:
+            print("=========== Categorías ===========")
+            for c in categorias:
+                print(f"ID: {c.cat_id}, Nombre: {c.cat_nombre}, Descripción: {c.cat_descripcion}")
+
+    except Exception as e:
+        print("Error al obtener categorías")
+        print(e)
 
 def main():
     print("==== PHARMASTOCK ==== ") 
