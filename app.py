@@ -365,6 +365,52 @@ def crear_categoria():
         print("Error al crear categoria")
         print(e)
 
+def ver_categorias():
+    try:
+        categorias = CategoriaDAO.obtener_todos()
+
+        if len(categorias) == 0:
+            print("No hay categorías registradas.")
+        else:
+            print("=========== Categorías ===========")
+            for c in categorias:
+                print(f"ID: {c.cat_id}, Nombre: {c.cat_nombre}, Descripción: {c.cat_descripcion}")
+
+    except Exception as e:
+        print("Error al obtener categorías")
+        print(e)
+
+def actualizar_categoria():
+    try:
+        cat_id = int(input("ID de la categoría a actualizar: "))
+        c = CategoriaDAO.obtener_por_id(cat_id)
+
+        if c:
+            c.cat_nombre = input("Nuevo nombre: ")
+            c.cat_descripcion = input("Nueva descripción: ")
+            CategoriaDAO.actualizar(c)
+            print("Categoría actualizada con éxito")
+        else:
+            print("Categoría no encontrada")
+
+    except Exception as e:
+        print("Error al actualizar categoría")
+        print(e)
+
+def eliminar_categoria():
+    try:
+        cat_id = int(input("ID de la categoría a eliminar: "))
+        c = CategoriaDAO.obtener_por_id(cat_id)
+
+        if c:
+            CategoriaDAO.eliminar(cat_id)
+            print("Categoría eliminada con éxito")
+        else:
+            print("Categoría no encontrada")
+
+    except Exception as e:
+        print("Error al eliminar categoría")
+        print(e)
 
 def main():
     print("==== PHARMASTOCK ==== ") 
@@ -381,6 +427,10 @@ def main():
     print("10.- Crear producto")
     print("11.- Actualizar producto")
     print("12.- Eliminar producto")
+    print("13.- Crear categoría")
+    print("14.- Ver categorías")
+    print("15.- Actualizar categoría")
+    print("16.- Eliminar categoría")
 
     opc = int(input("Selecciona una opcion: "))
 
@@ -409,6 +459,14 @@ def main():
             actualizar_producto()
         case 12:
             eliminar_producto()
+        case 13:
+            crear_categoria()
+        case 14:
+            ver_categorias()
+        case 15:
+            actualizar_categoria()
+        case 16:
+            eliminar_categoria()
 
 if __name__ == "__main__":
     main()
