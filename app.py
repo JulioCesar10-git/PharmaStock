@@ -1,3 +1,4 @@
+# IMPORT´S
 from backend.dao.proveedor_dao import ProveedorDAO
 from backend.models.proveedor import Proveedor
 
@@ -6,6 +7,9 @@ from backend.models.medicamento import Medicamento
 
 from backend.dao.producto_dao import ProductoDAO
 from backend.models.producto import Producto
+
+from backend.dao.categoria_dao import CategoriaDAO
+from backend.models.categoria import Categoria
 
 # FUNCIONES DE PROVEEDOR
 def crear_proveedor():
@@ -255,7 +259,6 @@ def crear_producto():
         print("Error al crear el producto")
         print(e)
 
-
 def ver_productos():
     try:
 
@@ -346,6 +349,22 @@ def eliminar_producto():
     except Exception as e:
         print("Error al eliminar producto")
         print(e)
+
+# FUNCIONES DE CATEGORIA
+def crear_categoria():
+    try:
+
+        cat_nombre = input("Nombre de la categoria: ")
+        cat_descripcion = input("Descripcion: ")
+
+        nueva = Categoria(cat_nombre, cat_descripcion)
+        CategoriaDAO.crear(nueva)
+        print("Categoria creada con exito")
+
+    except Exception as e:
+        print("Error al crear categoria")
+        print(e)
+
 
 def main():
     print("==== PHARMASTOCK ==== ") 
