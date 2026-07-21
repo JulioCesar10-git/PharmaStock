@@ -412,25 +412,14 @@ def eliminar_categoria():
         print("Error al eliminar categoría")
         print(e)
 
-def main():
-    print("==== PHARMASTOCK ==== ") 
+# PROVEEDORES
+def menu_proveedores():
+    print(" ==== PHARMASTOCK ==== ") 
     print("Menu de opciones: ")
     print("1.- Ver proveedores")
     print("2.- Crear proveedor")
     print("3.- Actualizar proveedor")
     print("4.- Eliminar proveedor")
-    print("5.- Insertar medicamento")
-    print("6.- Ver medicamentos")
-    print("7.- Actualizar medicamento")
-    print("8.- Eliminar medicamento")
-    print("9.- Ver productos")
-    print("10.- Crear producto")
-    print("11.- Actualizar producto")
-    print("12.- Eliminar producto")
-    print("13.- Crear categoría")
-    print("14.- Ver categorías")
-    print("15.- Actualizar categoría")
-    print("16.- Eliminar categoría")
 
     opc = int(input("Selecciona una opcion: "))
 
@@ -443,30 +432,91 @@ def main():
             actualizar_proveedor()
         case 4:
             eliminar_proveedor()
-        case 5:
+
+# MEDICAMENTOS
+def menu_medicamentos():
+    print(" ==== PHARMASTOCK ==== ") 
+    print("Menu de opciones: ")
+    print("1.- Insertar medicamento")
+    print("2.- Ver medicamentos")
+    print("3.- Actualizar medicamento")
+    print("4.- Eliminar medicamento")
+
+    opc = int(input("Selecciona una opcion: "))
+
+    match opc:
+        case 1:
             crear_medicamento()
-        case 6:
+        case 2:
             ver_medicamentos()
-        case 7:
+        case 3:
             actualizar_medicamento()
-        case 8:
+        case 4:
             eliminar_medicamento()
-        case 9:
+
+# PRODUCTOS
+def menu_productos():
+    print(" ==== PHARMASTOCK ==== ") 
+    print("Menu de opciones: ")
+    print("1.- Ver productos")
+    print("2.- Crear producto")
+    print("3.- Actualizar producto")
+    print("4.- Eliminar producto")
+
+    opc = int(input("Selecciona una opcion: "))
+
+    match opc:
+        case 1:
             ver_productos()
-        case 10:
+        case 2:
             crear_producto()
-        case 11:
+        case 3:
             actualizar_producto()
-        case 12:
+        case 4:
             eliminar_producto()
-        case 13:
+
+# CATEGORIAS
+def menu_categorias():
+    print(" ==== PHARMASTOCK ==== ") 
+    print("Menu de opciones: ")   
+    print("1.- Crear categoría")
+    print("2.- Ver categorías")
+    print("3.- Actualizar categoría")
+    print("4.- Eliminar categoría")
+
+    opc = int(input("Selecciona una opcion: "))
+
+    match opc:
+        
+        case 1:
             crear_categoria()
-        case 14:
+        case 2:
             ver_categorias()
-        case 15:
+        case 3:
             actualizar_categoria()
-        case 16:
+        case 4:
             eliminar_categoria()
 
+def main():
+    print(" ==== PHARMASTOCK ==== ") 
+    print("Menu de opciones: ")
+    print("1.- Proveedores")
+    print("2.- Medicamentos")
+    print("3.- Productos")
+    print("4.- Categorias:")
+
+    opc = int(input("Selecciona una opcion: "))
+
+    match opc:
+        
+        case 1:
+            menu_proveedores()
+        case 2:
+            menu_medicamentos()
+        case 3:
+            menu_productos()
+        case 4:
+            menu_categorias()
+            
 if __name__ == "__main__":
     main()
