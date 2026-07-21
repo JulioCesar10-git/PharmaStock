@@ -1,5 +1,5 @@
-from database.conexion import Conexion
-from models.producto import Producto
+from backend.database.conexion import Conexion
+from backend.models.producto import Producto
 
 class ProductoDAO:
 
