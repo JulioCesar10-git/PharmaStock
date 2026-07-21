@@ -114,7 +114,7 @@ class ProductoDAO:
 
                 prod.prod_codBarras, prod.prod_nombre, prod.prod_marca,
                 prod.prod_precio, prod.prod_existencia, prod.prod_lote,
-                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id
+                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id, prod.prod_id
 
             ))
             conn.commit()
