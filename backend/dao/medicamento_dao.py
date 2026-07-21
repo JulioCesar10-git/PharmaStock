@@ -11,7 +11,7 @@ class MedicamentoDAO:
                 INSERT INTO medicamentos (med_codBarras, med_nombreGen, med_nombreComer,
                 med_lab, med_origen, med_concentracion, med_formaFarma, med_viaAdmi,
                 med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id, cat_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING med_id
 
             """
