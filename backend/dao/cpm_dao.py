@@ -51,3 +51,43 @@ class CpmDAO:
             print("Error al generar reporte")
             print(e)
             return False
+        
+    @staticmethod
+    def obtener_reporte(mes, anio):
+        try:
+            sql = """
+
+                SELECT
+                    c.cpm_id,
+                    c.cpm_fecha,
+                    m.med_nombreGen,
+                    m.med_lab,
+                    m.med_fraccion,
+                    c.cpm_cantidad_promedio
+                FROM consumo_promedio_mensual c
+                JOIN medicamentos m ON c.cpm_prod_id = m.med_id
+                WHERE c.cpm_mes = %s
+                AND c.cpm_anio = %s
+                ORDER BY c.cpm_id ASC
+                
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cursor = conn.cursor()
+            cursor.execute(sql, (mes, anio))
+            filas = cursor.fetchall()
+            cursor.close()
+
+            return [{
+                "cpm_id": f[0],
+                "cpm_fecha": f[1],
+                "nombre": f[2],
+                "laboratorio": f[3],
+                "fraccion": f[4],
+                "promedio": f[5]
+            } for f in filas]
+
+        except Exception as e:
+            print("Error al obtener reporte")
+            print(e)
+            return []
