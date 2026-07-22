@@ -153,3 +153,45 @@ class VentaDAO:
             print("Error al obtener reporte de medicamentos")
             print(e)
             return []
+    def reporte_mensual_productos(mes, anio):
+
+        try:
+            sql = """
+
+                SELECT
+                    v.venta_fecha,
+                    v.venta_id,
+                    p.prod_id,
+                    p.prod_nombre,
+                    p.prod_marca,
+                    p.prod_fraccion,
+                    dv.detalle_cantidad
+                FROM detalle_ventas dv
+                JOIN ventas v ON dv.detalle_venta_id = v.venta_id
+                JOIN productos p ON dv.detalle_producto_id = p.prod_id
+                WHERE EXTRACT(MONTH FROM v.venta_fecha) = %s
+                AND EXTRACT(YEAR FROM v.venta_fecha) = %s
+                ORDER BY v.venta_fecha ASC
+
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cursor = conn.cursor()
+            cursor.execute(sql, (mes, anio))
+            filas = cursor.fetchall()
+            cursor.close()
+
+            return [{
+                "fecha": f[0],
+                "venta_id": f[1],
+                "producto_id": f[2],
+                "nombre": f[3],
+                "marca": f[4],
+                "fraccion": f[5],
+                "cantidad": f[6]
+            } for f in filas]
+
+        except Exception as e:
+            print("Error al obtener reporte de productos")
+            print(e)
+            return []
