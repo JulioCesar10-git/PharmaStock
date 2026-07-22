@@ -93,6 +93,36 @@ class ProductoDAO:
             print("Error al obtener producto")
             print(e)
             return None
+
+    @staticmethod
+    def obtener_por_codigo_barras(codigo):
+        try:
+            sql = """
+
+                SELECT prod_id, prod_codBarras, prod_nombre, prod_marca, prod_precio,
+                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id
+                FROM productos WHERE prod_codBarras = %s
+
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql, (codigo,))
+            f = cur.fetchone()
+            cur.close()
+            if f:
+                return Producto(
+                    prod_id=f[0], prod_codBarras=f[1], prod_nombre=f[2],
+                    prod_marca=f[3], prod_precio=f[4], prod_existencia=f[5],
+                    prod_lote=f[6], prod_fechaCad=f[7], prod_fraccion=f[8],
+                    prov_id=f[9]
+                )
+            return None
+        
+        except Exception as e:
+            print("Error al buscar por código de barras")
+            print(e)
+            return None
         
     @staticmethod
     def actualizar(prod):
