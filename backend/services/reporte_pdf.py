@@ -56,3 +56,38 @@ def generar_reporte_medicamentos_pdf(mes, anio):
     contenido.append(_construir_tabla(filas))
     doc.build(contenido)
     print(f"PDF generado: {nombre_archivo}")
+
+def generar_reporte_productos_pdf(mes, anio):
+    datos = VentaDAO.reporte_mensual_productos(mes, anio)
+
+    if not datos:
+        print("No hay datos de productos para generar el reporte")
+        return
+
+    os.makedirs("reportes", exist_ok=True)
+    nombre_archivo = f"reportes/reporte_productos_{mes}_{anio}.pdf"
+
+    doc = SimpleDocTemplate(nombre_archivo, pagesize = A4)
+    estilos = getSampleStyleSheet()
+    contenido = []
+
+    contenido.append(Paragraph(f"Reporte Mensual de Productos - {mes}/{anio}", estilos["Title"]))
+    contenido.append(Spacer(1, 20))
+
+    encabezados = ["Fecha", "Venta ID", "Producto ID", "Nombre", "Marca", "Fracción", "Cantidad"]
+    filas = [encabezados]
+
+    for d in datos:
+        filas.append([
+            str(d["fecha"]),
+            str(d["venta_id"]),
+            str(d["producto_id"]),
+            d["nombre"],
+            d["marca"],
+            d["fraccion"],
+            str(d["cantidad"])
+        ])
+
+    contenido.append(_construir_tabla(filas))
+    doc.build(contenido)
+    print(f"PDF generado: {nombre_archivo}")
