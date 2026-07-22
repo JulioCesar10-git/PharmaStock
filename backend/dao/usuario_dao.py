@@ -30,3 +30,32 @@ class UsuarioDAO:
             print("Error al iniciar sesion")
             print(e)
             return None
+
+# ADMINISTRADOR REGISTRA UN USUARIO
+    @staticmethod
+    def registrar(usuario_usuario, usuario_correoElec, usuario_password, usuario_cargo):
+        try:
+            password_encriptada = bcrypt.hashpw(usuario_password.encode("utf-8"), bcrypt.gensalt())
+
+            sql = """
+
+            INSERT INTO usuarios (usuario_usuario, usuario_correoElec, usuario_password, usuario_cargo)
+            VALUES
+            (%s, %s, %s, %s)
+
+            """
+            conn = Conexion.obtener_conexion()
+            cursor = conn.cursor()
+            cursor.execute(sql, (
+                usuario_usuario,
+                usuario_correoElec,
+                password_encriptada.decode("utf-8"),
+                usuario_cargo
+            ))
+            conn.commit()
+            cursor.close()
+            print("Usuario registrado con exito")
+        
+        except Exception as e:
+            print("Error al registrar usuario")
+            print(e)
