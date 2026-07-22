@@ -74,6 +74,56 @@ class VentaDAO:
             print("Error al registrar la venta")
             print(e)
             return None
+
+    @staticmethod
+    def corte_de_caja():
+        try:
+            sql = """
+                SELECT COUNT(*), COALESCE(SUM(venta_total), 0)
+                FROM ventas
+                WHERE DATE(venta_fecha) = CURRENT_DATE
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cursor = conn.cursor() 
+            cursor.execute(sql)
+            resultado = cursor.fetchone()
+            cursor.close()
+
+            return {
+                "total_ventas": resultado[0],
+                "total_dinero": resultado[1]
+            }
+
+        except Exception as e:
+            print("Error al generar corte de caja")
+            print(e)
+            return None
+
+    @staticmethod
+    def guardar_corte(usuario_id, total_ventas, total_dinero):
+        try:
+
+            sql = """
+
+                INSERT INTO corte_caja (corte_usuario_id, corte_total_ventas, corte_total_dinero)
+                VALUES (%s, %s, %s)
+
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cursor = conn.cursor()
+            cursor.execute(sql, (usuario_id, total_ventas, total_dinero))
+            conn.commit()
+            cursor.close()
+            print("Corte guardado correctamente")
+            return True
+
+        except Exception as e:
+            print("Error al guardar corte")
+            print(e)
+            return False
+        
     def reporte_mensual(mes, anio):
         try:
             sql = """
@@ -153,6 +203,7 @@ class VentaDAO:
             print("Error al obtener reporte de medicamentos")
             print(e)
             return []
+            
     def reporte_mensual_productos(mes, anio):
 
         try:
