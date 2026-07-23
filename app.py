@@ -11,6 +11,11 @@ from backend.models.producto import Producto
 from backend.dao.categoria_dao import CategoriaDAO
 from backend.models.categoria import Categoria
 
+from backend.dao.cpm_dao import CpmDAO
+from backend.services.reporte_pdf import generar_reporte_medicamentos_pdf
+from backend.services.reporte_pdf import generar_reporte_productos_pdf
+from backend.services.reporte_pdf import generar_reporte_cpm_pdf
+
 # FUNCIONES DE PROVEEDOR
 def crear_proveedor():
     try:
@@ -412,10 +417,38 @@ def eliminar_categoria():
         print("Error al eliminar categoría")
         print(e)
 
+# FUNCIONES DE REPORTES MENSUALES(CPM)
+def generar_reporte():
+    try:
+        mes = int(input("Mes (1-12): "))
+        anio = int(input("Año: "))
+
+        print("¿Qué reporte quieres generar?")
+        print("1. Medicamentos")
+        print("2. Productos")
+        print("3. Consumo Promedio Mensual")
+
+        opcion = input("Elige una opción: ")
+
+        match opcion:
+            case "1":
+                generar_reporte_medicamentos_pdf(mes, anio)
+            case "2":
+                generar_reporte_productos_pdf(mes, anio)
+            case "3":
+                CpmDAO.generar_reporte(mes, anio)
+                generar_reporte_cpm_pdf(mes, anio)
+            case _:
+                print("Opción no válida")
+
+    except Exception as e:
+        print("Error al generar reporte")
+        print(e)
+
 # PROVEEDORES
 def menu_proveedores():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")
+    print("Menu de opciones:")
     print("1.- Ver proveedores")
     print("2.- Crear proveedor")
     print("3.- Actualizar proveedor")
@@ -436,7 +469,7 @@ def menu_proveedores():
 # MEDICAMENTOS
 def menu_medicamentos():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")
+    print("Menu de opciones:")
     print("1.- Insertar medicamento")
     print("2.- Ver medicamentos")
     print("3.- Actualizar medicamento")
@@ -457,7 +490,7 @@ def menu_medicamentos():
 # PRODUCTOS
 def menu_productos():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")
+    print("Menu de opciones:")
     print("1.- Ver productos")
     print("2.- Crear producto")
     print("3.- Actualizar producto")
@@ -478,7 +511,7 @@ def menu_productos():
 # CATEGORIAS
 def menu_categorias():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")   
+    print("Menu de opciones:")   
     print("1.- Crear categoría")
     print("2.- Ver categorías")
     print("3.- Actualizar categoría")
@@ -499,11 +532,12 @@ def menu_categorias():
 
 def main():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")
+    print("Menu de opciones:")
     print("1.- Proveedores")
     print("2.- Medicamentos")
     print("3.- Productos")
-    print("4.- Categorias:")
+    print("4.- Categorias")
+    print("5.- Generar reporte")
 
     opc = int(input("Selecciona una opcion: "))
 
@@ -517,6 +551,8 @@ def main():
             menu_productos()
         case 4:
             menu_categorias()
+        case 5:
+            generar_reporte()
             
 if __name__ == "__main__":
     main()
