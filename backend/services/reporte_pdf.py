@@ -91,3 +91,37 @@ def generar_reporte_productos_pdf(mes, anio):
     contenido.append(_construir_tabla(filas))
     doc.build(contenido)
     print(f"PDF generado: {nombre_archivo}")
+
+def generar_reporte_cpm_pdf(mes, anio):
+    datos = CpmDAO.obtener_reporte(mes, anio)
+
+    if not datos:
+        print("No hay datos para generar el reporte CPM")
+        return
+
+    os.makedirs("reportes", exist_ok=True)
+    nombre_archivo = f"reportes/reporte_cpm_{mes}_{anio}.pdf"
+
+    doc = SimpleDocTemplate(nombre_archivo, pagesize=A4)
+    estilos = getSampleStyleSheet()
+    contenido = []
+
+    contenido.append(Paragraph(f"Reporte de Consumo Promedio Mensual - {mes}/{anio}", estilos["Title"]))
+    contenido.append(Spacer(1, 20))
+
+    encabezados = ["CPM ID", "Fecha", "Nombre Genérico", "Laboratorio", "Fracción", "Cantidad Promedio"]
+    filas = [encabezados]
+
+    for d in datos:
+        filas.append([
+            str(d["cpm_id"]),
+            str(d["cpm_fecha"]),
+            d["nombre"],
+            d["laboratorio"],
+            d["fraccion"],
+            str(round(d["promedio"], 2))
+        ])
+
+    contenido.append(_construir_tabla(filas))
+    doc.build(contenido)
+    print(f"PDF generado: {nombre_archivo}")
