@@ -11,12 +11,18 @@ from backend.models.producto import Producto
 from backend.dao.categoria_dao import CategoriaDAO
 from backend.models.categoria import Categoria
 
+from backend.dao.venta_dao import VentaDAO
+from backend.models.venta import Venta
+
 from backend.dao.usuario_dao import UsuarioDAO
 
 from backend.dao.cpm_dao import CpmDAO
 from backend.services.reporte_pdf import generar_reporte_medicamentos_pdf
 from backend.services.reporte_pdf import generar_reporte_productos_pdf
 from backend.services.reporte_pdf import generar_reporte_cpm_pdf
+
+from decimal import Decimal
+from datetime import date
 
 # FUNCIONES DE ADMINISTRADOR
 def registrar_usuario():
@@ -468,6 +474,122 @@ def generar_reporte():
 
     except Exception as e:
         print("Error al generar reporte")
+        print(e)
+
+# FUNCIONES DE VENTAS/DETALLES
+def registrar_venta(usuario_actual):
+    import uuid
+    carrito = []
+    folio = "V-" + str(uuid.uuid4())[:8].upper()
+
+    while True:
+        codigo = input("Código de barras (o 'fin' para terminar): ")
+        if codigo.lower() == 'fin':
+            break
+
+        # Buscar primero en medicamentos
+        item_encontrado = MedicamentoDAO.obtener_por_codigo_barras(codigo)
+        tipo = "med"
+
+        # Si no está en medicamentos, buscar en productos
+        if not item_encontrado:
+            item_encontrado = ProductoDAO.obtener_por_codigo_barras(codigo)
+            tipo = "prod"
+
+        if not item_encontrado:
+            print("Producto/Medicamento no encontrado")
+            continue
+
+        # Obtener nombre, precio y existencia según el tipo
+        if tipo == "med":
+            nombre = item_encontrado.med_nombreGen
+            precio = item_encontrado.med_precio
+            existencia = item_encontrado.med_existencia
+            item_id = item_encontrado.med_id
+        else:
+            nombre = item_encontrado.prod_nombre
+            precio = item_encontrado.prod_precio
+            existencia = item_encontrado.prod_existencia
+            item_id = item_encontrado.producto_id
+
+        cantidad = int(input(f"Cantidad de '{nombre}': "))
+        if cantidad > existencia:
+            print(f"Stock insuficiente. Disponible: {existencia}")
+            continue
+
+        subtotal = precio * cantidad
+
+        carrito.append({
+            "producto_id": item_id,
+            "tipo": tipo,
+            "cantidad": cantidad,
+            "precio_unitario": precio,
+            "subtotal": subtotal,
+            "nombre": nombre
+        })
+
+        print(f"Agregado: {nombre} x{cantidad} = ${subtotal}")
+
+    if not carrito:
+        print("Venta cancelada, no se agregaron artículos")
+        return
+
+    subtotal = sum(item["subtotal"] for item in carrito)
+    iva = subtotal * Decimal("0.16")
+    total = subtotal + iva
+
+    venta = Venta(
+        venta_folio=folio,
+        venta_fecha=None,
+        venta_usuario_id=usuario_actual.usuario_id,
+        venta_subtotal=subtotal,
+        venta_iva=iva,
+        venta_total=total
+    )
+
+    VentaDAO.crear_venta(venta, carrito)
+
+    ticket = generar_ticket(venta, carrito)
+    print(ticket)
+
+def generar_ticket(venta, carrito):
+    ticket = "===== PHARMASTOCK =====\n"
+    ticket += f"Folio: {venta.venta_folio}\n"
+    ticket += "------------------------\n"
+
+    for item in carrito:
+        ticket += f"{item['nombre']} x{item['cantidad']} = ${item['subtotal']}\n"
+
+    ticket += "------------------------\n"
+    ticket += f"Subtotal: ${venta.venta_subtotal}\n"
+    ticket += f"IVA: ${venta.venta_iva}\n"
+    ticket += f"Total: ${venta.venta_total}\n"
+    ticket += "========================\n"
+    ticket += "¡Gracias por su compra!"
+
+    return ticket
+
+def ver_corte_de_caja(usuario_actual):
+    try:
+        corte = VentaDAO.corte_de_caja()
+
+        if corte:
+            print("===== CORTE DE CAJA =====")
+            print(f"Fecha: {date.today()}")
+            print(f"Total de ventas: {corte['total_ventas']}")
+            print(f"Total en dinero: ${corte['total_dinero']}")
+            print("==========================")
+
+            VentaDAO.guardar_corte(
+                usuario_actual.usuario_id,
+                corte['total_ventas'],
+                corte['total_dinero']
+            )
+        else:
+            print("No se pudo generar el corte de caja")
+
+    except Exception as e:
+        print("Error al generar corte de caja")
         print(e)
 
 # PROVEEDORES
