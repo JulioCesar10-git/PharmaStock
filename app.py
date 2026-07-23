@@ -569,6 +569,29 @@ def generar_ticket(venta, carrito):
 
     return ticket
 
+def ver_corte_de_caja(usuario_actual):
+    try:
+        corte = VentaDAO.corte_de_caja()
+
+        if corte:
+            print("===== CORTE DE CAJA =====")
+            print(f"Fecha: {date.today()}")
+            print(f"Total de ventas: {corte['total_ventas']}")
+            print(f"Total en dinero: ${corte['total_dinero']}")
+            print("==========================")
+
+            VentaDAO.guardar_corte(
+                usuario_actual.usuario_id,
+                corte['total_ventas'],
+                corte['total_dinero']
+            )
+        else:
+            print("No se pudo generar el corte de caja")
+
+    except Exception as e:
+        print("Error al generar corte de caja")
+        print(e)
+
 # PROVEEDORES
 def menu_proveedores():
     print(" ==== PHARMASTOCK ==== ") 
