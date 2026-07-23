@@ -11,10 +11,35 @@ from backend.models.producto import Producto
 from backend.dao.categoria_dao import CategoriaDAO
 from backend.models.categoria import Categoria
 
+from backend.dao.usuario_dao import UsuarioDAO
+
 from backend.dao.cpm_dao import CpmDAO
 from backend.services.reporte_pdf import generar_reporte_medicamentos_pdf
 from backend.services.reporte_pdf import generar_reporte_productos_pdf
 from backend.services.reporte_pdf import generar_reporte_cpm_pdf
+
+# FUNCIONES DE ADMINISTRADOR
+def registrar_usuario():
+    try:
+        usuario_usuario = input("Nombre del usuario: ")
+        usuario_correoElec  =input("Correo electronico: ")
+        usuario_password = input("Contraseña: ")
+        print("=== Roles disponibles ===")
+        print("1.- Tendero")
+        print("2.- Bodeguero")
+        opcion_cargo = input("Elije el catgo")
+
+        match opcion_cargo:
+            case "1":
+                usuario_cargo = "tendero"
+            case "2":
+                usuario_cargo = "bodeguero"
+
+        UsuarioDAO.registrar(usuario_usuario, usuario_correoElec, usuario_password, usuario_cargo)
+
+    except Exception as e:
+        print("Error al registrar usuario")
+        print(e)
 
 # FUNCIONES DE PROVEEDOR
 def crear_proveedor():
