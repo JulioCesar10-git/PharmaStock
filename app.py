@@ -685,6 +685,8 @@ def main():
     print("3.- Productos")
     print("4.- Categorias")
     print("5.- Generar reporte")
+    print("6.- Registrar venta")
+    print("7.- Ver corte de caja")
 
     opc = int(input("Selecciona una opcion: "))
 
@@ -700,6 +702,10 @@ def main():
             menu_categorias()
         case 5:
             generar_reporte()
+        case 6:
+            registrar_venta()
+        case 7:
+            ver_corte_de_caja()
             
 if __name__ == "__main__":
     main()
