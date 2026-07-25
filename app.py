@@ -24,6 +24,11 @@ from backend.services.reporte_pdf import generar_reporte_cpm_pdf
 from decimal import Decimal
 from datetime import date
 
+# IMPORTAR FRONTEND
+import flet as ft
+
+from frontend.views.main_window import main_window
+
 # FUNCIONES DE ADMINISTRADOR
 def registrar_usuario():
     try:
@@ -677,35 +682,37 @@ def menu_categorias():
         case 4:
             eliminar_categoria()
 
-def main():
-    print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones:")
-    print("1.- Proveedores")
-    print("2.- Medicamentos")
-    print("3.- Productos")
-    print("4.- Categorias")
-    print("5.- Generar reporte")
-    print("6.- Registrar venta")
-    print("7.- Ver corte de caja")
+# def main():
+#     print(" ==== PHARMASTOCK ==== ") 
+#     print("Menu de opciones:")
+#     print("1.- Proveedores")
+#     print("2.- Medicamentos")
+#     print("3.- Productos")
+#     print("4.- Categorias")
+#     print("5.- Generar reporte")
+#     print("6.- Registrar venta")
+#     print("7.- Ver corte de caja")
 
-    opc = int(input("Selecciona una opcion: "))
+#     opc = int(input("Selecciona una opcion: "))
 
-    match opc:
+#     match opc:
         
-        case 1:
-            menu_proveedores()
-        case 2:
-            menu_medicamentos()
-        case 3:
-            menu_productos()
-        case 4:
-            menu_categorias()
-        case 5:
-            generar_reporte()
-        case 6:
-            registrar_venta()
-        case 7:
-            ver_corte_de_caja()
+#         case 1:
+#             menu_proveedores()
+#         case 2:
+#             menu_medicamentos()
+#         case 3:
+#             menu_productos()
+#         case 4:
+#             menu_categorias()
+#         case 5:
+#             generar_reporte()
+#         case 6:
+#             registrar_venta()
+#         case 7:
+#             ver_corte_de_caja()
             
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
+
+ft.app(target=main_window)
