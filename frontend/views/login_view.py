@@ -25,7 +25,172 @@ def main(page: ft.Page):
     COLOR_INPUT_BORDER_MODAL = "#99C1F1"
     COLOR_BOTON_MODAL = "#7F96C5"
 
-   
+    # --- COMPONENTES DE LA VENTANA EMERGENTE ---
+    input_correo_recuperar = ft.TextField(
+        hint_text="ejemplo@gmail.com",
+        hint_style=ft.TextStyle(color=COLOR_SUBTITULO_MODAL),
+        text_style=ft.TextStyle(color=COLOR_TITULO_MODAL),
+        bgcolor=COLOR_INPUT_BG_MODAL,
+        border_color=COLOR_INPUT_BORDER_MODAL,
+        border_radius=20,
+        content_padding=ft.Padding.symmetric(horizontal=15, vertical=10),
+        height=50,
+        width=float("inf"),
+    )
+
+    error_recuperar = ft.Text("", color=COLOR_ERROR, size=12, visible=False)
+
+    capa_modal = ft.Container(
+        visible=False,  
+        alignment=ft.Alignment.CENTER,
+        bgcolor=ft.Colors.BLACK54,  
+        expand=True,
+    )
+
+    # Funciones de ventana emergente
+    def abrir_recuperacion(e):
+        capa_modal.visible = True
+        page.update()
+
+    def cerrar_modal(e):
+        capa_modal.visible = False
+        input_correo_recuperar.value = ""
+        input_correo_recuperar.border_color = COLOR_INPUT_BORDER_MODAL
+        error_recuperar.visible = False
+        page.update()
+
+    def enviar_correo_recuperacion(e):
+        correo = (
+            input_correo_recuperar.value.strip()
+            if input_correo_recuperar.value
+            else ""
+        )
+
+        if not correo:
+            error_recuperar.value = "Por favor ingresa tu correo"
+            error_recuperar.visible = True
+            input_correo_recuperar.border_color = COLOR_ERROR
+            page.update()
+        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", correo):
+            error_recuperar.value = "Formato de correo no válido"
+            error_recuperar.visible = True
+            input_correo_recuperar.border_color = COLOR_ERROR
+            page.update()
+        else:
+            capa_modal.visible = False
+            input_correo_recuperar.value = ""
+            error_recuperar.visible = False
+            
+
+            # Notificación de éxito
+            snack = ft.SnackBar(
+                content=ft.Text(f"Correo de recuperación enviado a: {correo}"),
+                bgcolor=ft.Colors.GREEN_600,
+                open = True,
+            )
+            page.overlay.append(snack)
+            page.update()
+
+        input_correo_recuperar.update()
+        error_recuperar.update()
+
+    # Contenido de la tarjeta del modal
+    tarjeta_modal_contenido = ft.Container(
+        width=550,
+        bgcolor=ft.Colors.WHITE,
+        border_radius=24,
+        padding=ft.Padding.all(25),
+        content=ft.Column(
+            tight=True,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=12,
+            controls=[
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.START,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    controls=[
+                        # Botón Flecha Atrás para cerrar
+                        ft.IconButton(
+                            icon=ft.Icons.ARROW_BACK,
+                            icon_color=ft.Colors.WHITE,
+                            icon_size=20,
+                            bgcolor="#819BBF",
+                            on_click=cerrar_modal,
+                        ),
+                        ft.Container(
+                            expand=True,
+                            alignment=ft.Alignment.CENTER,
+                            content=ft.Text(
+                                "Recuperar contraseña",
+                                size=28,
+                                weight=ft.FontWeight.BOLD,
+                                color=COLOR_TITULO_MODAL,
+                            ),
+                        ),
+                        ft.Container(width=40),
+                    ],
+                ),
+                ft.Text(
+                    "Ingresa los datos:",
+                    size=18,
+                    color=COLOR_SUBTITULO_MODAL,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+                ft.Container(height=5),
+                ft.Column(
+                    horizontal_alignment=ft.CrossAxisAlignment.START,
+                    spacing=4,
+                    controls=[
+                        ft.Text(
+                            "Correo electrónico",
+                            size=18,
+                            weight=ft.FontWeight.BOLD,
+                            color=COLOR_TITULO_MODAL,
+                        ),
+                        input_correo_recuperar,
+                        error_recuperar,
+                    ],
+                ),
+                ft.Container(height=5),
+                ft.Text(
+                    "Se enviará un correo electrónico a tu bandeja\nde entrada para cambiar la contraseña",
+                    size=16,
+                    color=COLOR_SUBTITULO_MODAL,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+                ft.Container(
+                    margin=ft.Margin.symmetric(vertical=5),
+                    content=ft.Text(
+                        "- - " * 22,
+                        color=COLOR_INPUT_BORDER_MODAL,
+                        size=16,
+                        text_align=ft.TextAlign.CENTER,
+                        max_lines=1,
+                    ),
+                ),
+                ft.ElevatedButton(
+                    content=ft.Text(
+                        "Enviar correo",
+                        color=ft.Colors.WHITE,
+                        weight=ft.FontWeight.BOLD,
+                        size=18,
+                    ),
+                    style=ft.ButtonStyle(
+                        bgcolor=COLOR_BOTON_MODAL,
+                        shape=ft.RoundedRectangleBorder(radius=20),
+                        elevation=0,
+                    ),
+                    width=float("inf"),
+                    height=42,
+                    on_click=enviar_correo_recuperacion,
+                ),
+            ],
+        ),
+    )
+
+    # Asignamos la tarjeta dentro de la capa sombreada
+    capa_modal.content = tarjeta_modal_contenido
+
     # --- CAMPOS Y VISTA DEL LOGIN ---
     input_usuario = ft.TextField(
         hint_text="ejemplo@gmail.com",
