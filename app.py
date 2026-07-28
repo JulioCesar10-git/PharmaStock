@@ -11,6 +11,47 @@ from backend.models.producto import Producto
 from backend.dao.categoria_dao import CategoriaDAO
 from backend.models.categoria import Categoria
 
+from backend.dao.venta_dao import VentaDAO
+from backend.models.venta import Venta
+
+from backend.dao.usuario_dao import UsuarioDAO
+
+from backend.dao.cpm_dao import CpmDAO
+from backend.services.reporte_pdf import generar_reporte_medicamentos_pdf
+from backend.services.reporte_pdf import generar_reporte_productos_pdf
+from backend.services.reporte_pdf import generar_reporte_cpm_pdf
+
+from decimal import Decimal
+from datetime import date
+
+# IMPORTAR FRONTEND
+import flet as ft
+
+from frontend.views.main_window import main_window
+
+# FUNCIONES DE ADMINISTRADOR
+def registrar_usuario():
+    try:
+        usuario_usuario = input("Nombre del usuario: ")
+        usuario_correoElec  =input("Correo electronico: ")
+        usuario_password = input("Contraseña: ")
+        print("=== Roles disponibles ===")
+        print("1.- Tendero")
+        print("2.- Bodeguero")
+        opcion_cargo = input("Elije el catgo")
+
+        match opcion_cargo:
+            case "1":
+                usuario_cargo = "tendero"
+            case "2":
+                usuario_cargo = "bodeguero"
+
+        UsuarioDAO.registrar(usuario_usuario, usuario_correoElec, usuario_password, usuario_cargo)
+
+    except Exception as e:
+        print("Error al registrar usuario")
+        print(e)
+
 # FUNCIONES DE PROVEEDOR
 def crear_proveedor():
     try:
@@ -412,10 +453,154 @@ def eliminar_categoria():
         print("Error al eliminar categoría")
         print(e)
 
+# FUNCIONES DE REPORTES MENSUALES(CPM)
+def generar_reporte():
+    try:
+        mes = int(input("Mes (1-12): "))
+        anio = int(input("Año: "))
+
+        print("¿Qué reporte quieres generar?")
+        print("1. Medicamentos")
+        print("2. Productos")
+        print("3. Consumo Promedio Mensual")
+
+        opcion = input("Elige una opción: ")
+
+        match opcion:
+            case "1":
+                generar_reporte_medicamentos_pdf(mes, anio)
+            case "2":
+                generar_reporte_productos_pdf(mes, anio)
+            case "3":
+                CpmDAO.generar_reporte(mes, anio)
+                generar_reporte_cpm_pdf(mes, anio)
+            case _:
+                print("Opción no válida")
+
+    except Exception as e:
+        print("Error al generar reporte")
+        print(e)
+
+# FUNCIONES DE VENTAS/DETALLES
+def registrar_venta(usuario_actual):
+    import uuid
+    carrito = []
+    folio = "V-" + str(uuid.uuid4())[:8].upper()
+
+    while True:
+        codigo = input("Código de barras (o 'fin' para terminar): ")
+        if codigo.lower() == 'fin':
+            break
+
+        # Buscar primero en medicamentos
+        item_encontrado = MedicamentoDAO.obtener_por_codigo_barras(codigo)
+        tipo = "med"
+
+        # Si no está en medicamentos, buscar en productos
+        if not item_encontrado:
+            item_encontrado = ProductoDAO.obtener_por_codigo_barras(codigo)
+            tipo = "prod"
+
+        if not item_encontrado:
+            print("Producto/Medicamento no encontrado")
+            continue
+
+        # Obtener nombre, precio y existencia según el tipo
+        if tipo == "med":
+            nombre = item_encontrado.med_nombreGen
+            precio = item_encontrado.med_precio
+            existencia = item_encontrado.med_existencia
+            item_id = item_encontrado.med_id
+        else:
+            nombre = item_encontrado.prod_nombre
+            precio = item_encontrado.prod_precio
+            existencia = item_encontrado.prod_existencia
+            item_id = item_encontrado.producto_id
+
+        cantidad = int(input(f"Cantidad de '{nombre}': "))
+        if cantidad > existencia:
+            print(f"Stock insuficiente. Disponible: {existencia}")
+            continue
+
+        subtotal = precio * cantidad
+
+        carrito.append({
+            "producto_id": item_id,
+            "tipo": tipo,
+            "cantidad": cantidad,
+            "precio_unitario": precio,
+            "subtotal": subtotal,
+            "nombre": nombre
+        })
+
+        print(f"Agregado: {nombre} x{cantidad} = ${subtotal}")
+
+    if not carrito:
+        print("Venta cancelada, no se agregaron artículos")
+        return
+
+    subtotal = sum(item["subtotal"] for item in carrito)
+    iva = subtotal * Decimal("0.16")
+    total = subtotal + iva
+
+    venta = Venta(
+        venta_folio=folio,
+        venta_fecha=None,
+        venta_usuario_id=usuario_actual.usuario_id,
+        venta_subtotal=subtotal,
+        venta_iva=iva,
+        venta_total=total
+    )
+
+    VentaDAO.crear_venta(venta, carrito)
+
+    ticket = generar_ticket(venta, carrito)
+    print(ticket)
+
+def generar_ticket(venta, carrito):
+    ticket = "===== PHARMASTOCK =====\n"
+    ticket += f"Folio: {venta.venta_folio}\n"
+    ticket += "------------------------\n"
+
+    for item in carrito:
+        ticket += f"{item['nombre']} x{item['cantidad']} = ${item['subtotal']}\n"
+
+    ticket += "------------------------\n"
+    ticket += f"Subtotal: ${venta.venta_subtotal}\n"
+    ticket += f"IVA: ${venta.venta_iva}\n"
+    ticket += f"Total: ${venta.venta_total}\n"
+    ticket += "========================\n"
+    ticket += "¡Gracias por su compra!"
+
+    return ticket
+
+def ver_corte_de_caja(usuario_actual):
+    try:
+        corte = VentaDAO.corte_de_caja()
+
+        if corte:
+            print("===== CORTE DE CAJA =====")
+            print(f"Fecha: {date.today()}")
+            print(f"Total de ventas: {corte['total_ventas']}")
+            print(f"Total en dinero: ${corte['total_dinero']}")
+            print("==========================")
+
+            VentaDAO.guardar_corte(
+                usuario_actual.usuario_id,
+                corte['total_ventas'],
+                corte['total_dinero']
+            )
+        else:
+            print("No se pudo generar el corte de caja")
+
+    except Exception as e:
+        print("Error al generar corte de caja")
+        print(e)
+
 # PROVEEDORES
 def menu_proveedores():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")
+    print("Menu de opciones:")
     print("1.- Ver proveedores")
     print("2.- Crear proveedor")
     print("3.- Actualizar proveedor")
@@ -436,7 +621,7 @@ def menu_proveedores():
 # MEDICAMENTOS
 def menu_medicamentos():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")
+    print("Menu de opciones:")
     print("1.- Insertar medicamento")
     print("2.- Ver medicamentos")
     print("3.- Actualizar medicamento")
@@ -457,7 +642,7 @@ def menu_medicamentos():
 # PRODUCTOS
 def menu_productos():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")
+    print("Menu de opciones:")
     print("1.- Ver productos")
     print("2.- Crear producto")
     print("3.- Actualizar producto")
@@ -478,7 +663,7 @@ def menu_productos():
 # CATEGORIAS
 def menu_categorias():
     print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")   
+    print("Menu de opciones:")   
     print("1.- Crear categoría")
     print("2.- Ver categorías")
     print("3.- Actualizar categoría")
@@ -497,26 +682,37 @@ def menu_categorias():
         case 4:
             eliminar_categoria()
 
-def main():
-    print(" ==== PHARMASTOCK ==== ") 
-    print("Menu de opciones: ")
-    print("1.- Proveedores")
-    print("2.- Medicamentos")
-    print("3.- Productos")
-    print("4.- Categorias:")
+# def main():
+#     print(" ==== PHARMASTOCK ==== ") 
+#     print("Menu de opciones:")
+#     print("1.- Proveedores")
+#     print("2.- Medicamentos")
+#     print("3.- Productos")
+#     print("4.- Categorias")
+#     print("5.- Generar reporte")
+#     print("6.- Registrar venta")
+#     print("7.- Ver corte de caja")
 
-    opc = int(input("Selecciona una opcion: "))
+#     opc = int(input("Selecciona una opcion: "))
 
-    match opc:
+#     match opc:
         
-        case 1:
-            menu_proveedores()
-        case 2:
-            menu_medicamentos()
-        case 3:
-            menu_productos()
-        case 4:
-            menu_categorias()
+#         case 1:
+#             menu_proveedores()
+#         case 2:
+#             menu_medicamentos()
+#         case 3:
+#             menu_productos()
+#         case 4:
+#             menu_categorias()
+#         case 5:
+#             generar_reporte()
+#         case 6:
+#             registrar_venta()
+#         case 7:
+#             ver_corte_de_caja()
             
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
+
+ft.app(target=main_window)

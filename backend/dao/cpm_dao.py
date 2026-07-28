@@ -1,7 +1,6 @@
 from backend.database.conexion import Conexion
 from datetime import date
 
-
 class CpmDAO:
 
     @staticmethod
