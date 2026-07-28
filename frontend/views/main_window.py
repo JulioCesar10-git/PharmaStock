@@ -1,6 +1,7 @@
 import flet as ft
 import calendar
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 # Variables globales para conservar el estado entre pestañas
 ESTADO_FARMACIA = {
@@ -510,26 +511,69 @@ def main_window(page: ft.Page):
     # ----------------------------------------------------
     # COMPONENTES Y VISTA DEL INVENTARIO
     # ----------------------------------------------------
-    def crear_tarjeta_producto(nombre, categoria, precio, stock, alertas=[]):
+    def crear_tarjeta_producto(nombre, categoria, precio, stock, caducidad="N/A", alertas=None):
+
+        alertas_locales = list(alertas) if alertas else []
+
+        # --- CONDICIÓN AUTOMÁTICA DE STOCK BAJO ---
+        if stock <= 50 and "Stock bajo" not in alertas_locales:
+            alertas_locales.insert(0, "Stock bajo")
+
+        # --- CONDICIÓN AUTOMÁTICA DE CADUCIDAD (Por caducar - Caducado) ---
+        if caducidad and caducidad != "N/A":
+            try:
+                # Asumimos formato "MM/YYYY" (ejemplo: "12/2026")
+                fecha_cad = datetime.strptime(caducidad, "%m/%Y")
+                # Fecha actual
+                hoy = datetime.now()
+                # Calculamos el límite superior (Fecha actual + 3 meses)
+                # Para evitar dependencias externas como dateutil, podemos comparar los meses en total:
+                diferencia_meses = (fecha_cad.year - hoy.year) * 12 + (fecha_cad.month - hoy.month)
+
+                # A) Si la fecha de caducidad ya pasó
+                if diferencia_meses < 0:
+                    if "Caducado" not in alertas_locales:
+                        alertas_locales.append("Caducado")
+                    # Si por algún motivo tenía la alerta "Por caducar", la removemos
+                    if "Por caducar" in alertas_locales:
+                        alertas_locales.remove("Por caducar")
+
+                # B) Si está por caducar dentro de los próximos 3 meses (entre 0 y 3 meses)
+                elif 0 <= diferencia_meses <= 3:
+                    if "Por caducar" not in alertas_locales:
+                        alertas_locales.append("Por caducar")
+                    if "Caducado" in alertas_locales:
+                        alertas_locales.remove("Caducado")
+
+                # C) Si falta más de 3 meses, removemos cualquier alerta de caducidad previa
+                else:
+                    if "Por caducar" in alertas_locales:
+                        alertas_locales.remove("Por caducar")
+                    if "Caducado" in alertas_locales:
+                        alertas_locales.remove("Caducado")
+
+            except ValueError:
+                pass  # En caso de que la cadena no tenga formato "MM/YYYY"
+
         # 1. Placeholder de la imagen (recuadro azul claro)
         imagen_placeholder = ft.Container(
-            height=140,
+            height=90,
             bgcolor="#E8F1FF",
-            border_radius=ft.BorderRadius.only(top_left=12, top_right=12),
+            border_radius=ft.BorderRadius.only(top_left=10, top_right=10),
             border=ft.Border.all(1, "#A0C3FF"),
-            content=ft.Icon(ft.Icons.IMAGE_OUTLINED, color="#A0C3FF", size=40),
+            content=ft.Icon(ft.Icons.IMAGE_OUTLINED, color="#A0C3FF", size=32),
             alignment=ft.Alignment.CENTER,
         )
 
-        # 2. Insignias de Alertas (Stock bajo / Caducidad) en la esquina superior derecha
+        # 2. Insignias de Alertas (Stock bajo / Caducidad)
         alertas_column = ft.Column(
             controls=[
                 ft.Container(
                     content=ft.Text(alerta, size=10, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD),
-                    bgcolor="#E53935",
+                    bgcolor="#B71C1C" if alerta == "Caducado" else "#E53935",
                     padding=ft.Padding.symmetric(horizontal=8, vertical=3),
                     border_radius=12,
-                ) for alerta in alertas
+                ) for alerta in alertas_locales
             ],
             spacing=4,
             alignment=ft.MainAxisAlignment.START,
@@ -550,26 +594,50 @@ def main_window(page: ft.Page):
 
         # 3. Cuerpo con información del medicamento
         info_container = ft.Container(
-            padding=12,
+            padding=8,
             content=ft.Column([
                 # Categoría y Precio
                 ft.Row([
                     ft.Container(
                         content=ft.Text(categoria, size=11, color="#2B529A", weight=ft.FontWeight.W_500),
                         bgcolor="#E8F1FF",
-                        padding=ft.Padding.symmetric(horizontal=10, vertical=4),
+                        padding=ft.Padding.symmetric(horizontal=6, vertical=2),
                         border_radius=12,
                     ),
-                    ft.Text(f"${precio}", size=13, weight=ft.FontWeight.BOLD, color=COLOR_INPUT_BG)
+                    ft.Text(f"${precio}", size=11, weight=ft.FontWeight.BOLD, color=COLOR_INPUT_BG)
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 
                 # Nombre del medicamento
-                ft.Text(nombre, size=15, weight=ft.FontWeight.BOLD, color=COLOR_INPUT_BG),
+                ft.Text(nombre, size=15, weight=ft.FontWeight.BOLD, color=COLOR_INPUT_BG, overflow=ft.TextOverflow.ELLIPSIS),
                 
                 # Cantidad en stock
-                ft.Text(f"En almacén: {stock} pz", size=12, color="grey")
-            ], spacing=6)
+                ft.Text(f"En almacén: {stock} pz", size=12, color="grey"),
+
+                # Fecha de caducidad
+                ft.Row([
+                    ft.Icon(ft.Icons.CALENDAR_TODAY_OUTLINED, size=11, color="#E53935" if "Por caducar" in alertas_locales else "grey"),
+                    ft.Text(
+                        f"Caducidad: {caducidad}",
+                        size=10, 
+                        weight=ft.FontWeight.W_500 if "Por caducar" in alertas_locales else ft.FontWeight.NORMAL,
+                        color="#E53935" if "Por caducar" in alertas_locales else "grey"
+                    )
+                ], spacing=3)
+            ], spacing=3)
         )
+
+        # Verificar si el producto tiene problemas de fecha para cambiar color de texto/ícono
+        tiene_alerta_fecha = "Por caducar" in alertas_locales or "Caducado" in alertas_locales
+
+        ft.Row([
+            ft.Icon(ft.Icons.CALENDAR_TODAY_OUTLINED, size=11, color="#E53935" if tiene_alerta_fecha else "grey"),
+            ft.Text(
+                f"Caducidad: {caducidad}",
+                size=10, 
+                weight=ft.FontWeight.W_500 if tiene_alerta_fecha else ft.FontWeight.NORMAL,
+                color="#E53935" if tiene_alerta_fecha else "grey"
+            )
+        ], spacing=3)
 
         return ft.Container(
             bgcolor=BG_CARD_WHITE,
@@ -578,28 +646,48 @@ def main_window(page: ft.Page):
             content=ft.Column([header_stack, info_container], spacing=0)
         )
 
+
     def vista_inventario(page: ft.Page):
 
+        # ----------------------------------------------------
+        # GRID DE PRODUCTOS (AQUÍ DESPLEGAMOS LAS TARJETAS)
+        # ----------------------------------------------------
+        # Datos de prueba de medicamentos
+        productos_ejemplo = [
+            {"nombre": "Paracetamol 500mg", "categoria": "Analgésico", "precio": 45.00, "stock": 120, "caducidad": "09/2026", "alertas": []},
+            {"nombre": "Amoxicilina 875mg", "categoria": "Antibiótico", "precio": 120.50, "stock": 5, "caducidad": "08/2026", "alertas": []},
+            {"nombre": "Ibuprofeno 400mg", "categoria": "Antiinflamatorio", "precio": 65.00, "stock": 2, "caducidad": "10/2026", "alertas": []},
+            {"nombre": "Omeprazol 20mg", "categoria": "Antiácido", "precio": 88.00, "stock": 45, "caducidad": "11/2026", "alertas": []},
+            {"nombre": "Loratadina 10mg", "categoria": "Antihistamínico", "precio": 35.00, "stock": 80, "caducidad": "06/2026", "alertas": []},
+            {"nombre": "Metformina 850mg", "categoria": "Antidiabético", "precio": 110.00, "stock": 3, "caducidad": "12/2026", "alertas": []},
+            {"nombre": "Levocetirizina", "categoria": "Antíhistamínico", "precio": 150.00, "stock": 51, "caducidad": "12/2026", "alertas": []},
+        ]
+        
+        # --- CÁLCULOS DINÁMICOS ---
+        total_productos = len(productos_ejemplo)
+        total_unidades_stock = sum(prod["stock"] for prod in productos_ejemplo)
+
+        # ----------------------------------------------------
+        # 2. BARRA DE BÚSQUEDA Y DIÁLOGOS
+        # ----------------------------------------------------
         bar_busqueda = ft.Row([
-                    ft.TextField(
-                        hint_text="Buscar",
-                        prefix_icon=ft.Icons.SEARCH,
-                        height=40,
-                        border_radius=20,
-                        content_padding=ft.Padding.only(left=10, right=10),
-                        border_color="#A0C3FF",
-                        expand=True
-                    ),
-                    ft.ElevatedButton("+ Añadir", bgcolor="#89AEEA", color=ft.Colors.WHITE, height=38),
-                    ft.ElevatedButton("Y Filtros", icon=ft.Icons.FILTER_ALT, bgcolor="#89AEEA", color=ft.Colors.WHITE, height=38),
-                    ft.ElevatedButton("Ordenar", icon=ft.Icons.GRID_VIEW, bgcolor="#89AEEA", color=ft.Colors.WHITE, height=38),
-                ], spacing=10)
+            ft.TextField(
+                hint_text="Buscar",
+                prefix_icon=ft.Icons.SEARCH,
+                height=40,
+                border_radius=20,
+                content_padding=ft.Padding.only(left=10, right=10),
+                border_color="#A0C3FF",
+                expand=True
+            ),
+            ft.ElevatedButton("+ Añadir", bgcolor="#89AEEA", color=ft.Colors.WHITE, height=38),
+            ft.ElevatedButton("Filtros", icon=ft.Icons.FILTER_ALT, bgcolor="#89AEEA", color=ft.Colors.WHITE, height=38),
+            ft.ElevatedButton("Ordenar", icon=ft.Icons.GRID_VIEW, bgcolor="#89AEEA", color=ft.Colors.WHITE, height=38),
+        ], spacing=10)
         
         # ----------------------------------------------------
         # LÓGICA DE FARMACIA Y SUCURSAL
         # ----------------------------------------------------
-        # --- 1. EDITAR NOMBRE DE LA FARMACIA ---
-        # Leemos el valor guardado en el estado global
         texto_nombre_farmacia = ft.Text(
             ESTADO_FARMACIA["nombre"], 
             size=18, 
@@ -621,9 +709,7 @@ def main_window(page: ft.Page):
         def guardar_nombre_farmacia(e):
             if tf_nuevo_nombre_farmacia.value and tf_nuevo_nombre_farmacia.value.strip():
                 nuevo_val = tf_nuevo_nombre_farmacia.value.strip()
-                # 1. Actualizamos la variable de estado persistente
                 ESTADO_FARMACIA["nombre"] = nuevo_val
-                # 2. Actualizamos la interfaz actual
                 texto_nombre_farmacia.value = nuevo_val
             cerrar_dialogo_farmacia(e)
 
@@ -632,12 +718,7 @@ def main_window(page: ft.Page):
             content=tf_nuevo_nombre_farmacia,
             actions=[
                 ft.TextButton("Cancelar", on_click=cerrar_dialogo_farmacia),
-                ft.ElevatedButton(
-                    "Guardar", 
-                    bgcolor="#89AEEA", 
-                    color=ft.Colors.WHITE, 
-                    on_click=guardar_nombre_farmacia
-                ),
+                ft.ElevatedButton("Guardar", bgcolor="#89AEEA", color=ft.Colors.WHITE, on_click=guardar_nombre_farmacia),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -646,14 +727,12 @@ def main_window(page: ft.Page):
             page.overlay.append(dialogo_farmacia)
 
         def abrir_dialogo_farmacia(e):
-            # Cargar el valor del estado persistente en el TextField
             valor_actual = ESTADO_FARMACIA["nombre"]
             tf_nuevo_nombre_farmacia.value = "" if valor_actual == "Sin nombre asignado" else valor_actual
-            
             dialogo_farmacia.open = True
             page.update()
 
-        # --- 2. EDITAR SUCURSAL ---
+        # --- EDITAR SUCURSAL ---
         texto_sucursal = ft.Text(
             f"Sucursal: {ESTADO_FARMACIA['sucursal']}", 
             size=11, 
@@ -673,7 +752,6 @@ def main_window(page: ft.Page):
         def guardar_nombre_sucursal(e):
             if tf_nueva_sucursal.value and tf_nueva_sucursal.value.strip():
                 nuevo_val = tf_nueva_sucursal.value.strip()
-                # Actualizamos la variable de estado persistente
                 ESTADO_FARMACIA["sucursal"] = nuevo_val
                 texto_sucursal.value = f"Sucursal: {nuevo_val}"
             cerrar_dialogo_sucursal(e)
@@ -683,12 +761,7 @@ def main_window(page: ft.Page):
             content=tf_nueva_sucursal,
             actions=[
                 ft.TextButton("Cancelar", on_click=cerrar_dialogo_sucursal),
-                ft.ElevatedButton(
-                    "Guardar", 
-                    bgcolor="#89AEEA", 
-                    color=ft.Colors.WHITE, 
-                    on_click=guardar_nombre_sucursal
-                ),
+                ft.ElevatedButton("Guardar", bgcolor="#89AEEA", color=ft.Colors.WHITE, on_click=guardar_nombre_sucursal),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -699,54 +772,11 @@ def main_window(page: ft.Page):
         def abrir_dialogo_sucursal(e):
             valor_actual = ESTADO_FARMACIA["sucursal"]
             tf_nueva_sucursal.value = "" if valor_actual == "Sin sucursal asignada" else valor_actual
-            
             dialogo_sucursal.open = True
             page.update()
 
-
-        # --- 2. EDITAR SUCURSAL ---
-        texto_sucursal = ft.Text("Sucursal: Sin sucursal asignada", size=11, color="#3B71E8")
-        tf_nueva_sucursal = ft.TextField(
-            label="Nombre o dirección de la sucursal", 
-            hint_text="Ej. Avenida Cuitlahuac 30 A", 
-            autofocus=True
-        )
-
-        def cerrar_dialogo_sucursal(e):
-            dialogo_sucursal.open = False
-            page.update()
-
-        def guardar_nombre_sucursal(e):
-            if tf_nueva_sucursal.value.strip():
-                texto_sucursal.value = f"Sucursal: {tf_nueva_sucursal.value.strip()}"
-            cerrar_dialogo_sucursal(e)
-
-        dialogo_sucursal = ft.AlertDialog(
-            title=ft.Text("Editar Sucursal"),
-            content=tf_nueva_sucursal,
-            actions=[
-                ft.TextButton("Cancelar", on_click=cerrar_dialogo_sucursal),
-                ft.ElevatedButton(
-                    "Guardar", 
-                    bgcolor="#89AEEA", 
-                    color=ft.Colors.WHITE, 
-                    on_click=guardar_nombre_sucursal
-                ),
-            ],
-            actions_alignment=ft.MainAxisAlignment.END,
-        )
-
-        def abrir_dialogo_sucursal(e):
-            valor_actual = texto_sucursal.value.replace("Sucursal: ", "")
-            tf_nueva_sucursal.value = valor_actual if valor_actual != "Sin sucursal asignada" else ""
-            # Sintaxis correcta para Flet 0.86:
-            page.dialog = dialogo_sucursal
-            dialogo_sucursal.open = True
-            page.update()
-
-        # --- 3. ENSAMBLADO DEL ENCABEZADO ---
+        # --- ENCABEZADO ---
         header_farmacia = ft.Row([
-            # Sección izquierda: Farmacia y Badges
             ft.Row([
                 ft.Icon(ft.Icons.STORE, color=COLOR_INPUT_BG, size=24),
                 texto_nombre_farmacia,
@@ -758,14 +788,18 @@ def main_window(page: ft.Page):
                     on_click=abrir_dialogo_farmacia
                 ),
                 ft.Container(
-                    content=ft.Text("50 productos | 500 medicamentos", size=11, color="#3B71E8", weight=ft.FontWeight.BOLD),
+                    content=ft.Text(
+                        f"{total_productos} productos | {total_unidades_stock} medicamentos",
+                        size=11, 
+                        color="#3B71E8", 
+                        weight=ft.FontWeight.BOLD
+                    ),
                     bgcolor="#D0E0FF",
                     padding=ft.Padding.symmetric(horizontal=10, vertical=4),
                     border_radius=12
                 )
             ], spacing=4),
 
-            # Sección derecha: Sucursal y su botón de edición
             ft.Row([
                 texto_sucursal,
                 ft.IconButton(
@@ -778,7 +812,27 @@ def main_window(page: ft.Page):
             ], spacing=2)
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
-        # D) Paginación Inferior
+        # Creamos el GridView adaptable a distintas pantallas
+        grid_productos = ft.GridView(
+            expand=True,
+            runs_count=6,
+            max_extent=None,  # Ancho máximo deseado para cada tarjeta
+            child_aspect_ratio=0.90,  # Proporción Ancho / Alto de cada celda
+            spacing=10,
+            run_spacing=10,
+            controls=[
+                crear_tarjeta_producto(
+                    nombre=prod["nombre"],
+                    categoria=prod["categoria"],
+                    precio=prod["precio"],
+                    stock=prod["stock"],
+                    caducidad=prod.get("caducidad", "N/A"),
+                    alertas=prod["alertas"]
+                ) for prod in productos_ejemplo
+            ]
+        )
+
+        # Paginación Inferior
         paginacion = ft.Row([
             ft.IconButton(icon=ft.Icons.KEYBOARD_ARROW_LEFT, icon_color=COLOR_AZUL_CARD, bgcolor="#D0E0FF"),
             ft.Container(content=ft.Text("1", color=ft.Colors.WHITE), bgcolor=COLOR_AZUL_CARD, border_radius=15, padding=ft.Padding.symmetric(horizontal=12, vertical=6)),
@@ -800,6 +854,7 @@ def main_window(page: ft.Page):
                 bar_busqueda,
                 header_farmacia,
                 ft.Divider(color="#A0C3FF", height=1),
+                grid_productos,  # <--- Aquí añadimos el catálogo de tarjetas
                 paginacion
             ], spacing=15, expand=True)
         )
