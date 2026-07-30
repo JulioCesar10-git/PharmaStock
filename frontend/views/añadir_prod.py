@@ -10,13 +10,10 @@ def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     
-    
     PRIMARY_COLOR = "#5086EC"
     LIGHT_BG = "#EDF5FC"
     BORDER_COLOR = "#D1E5FB"
-    TEXT_COLOR = "#1A365D"
-
-    
+    TEXT_COLOR = "#1A365D"    
     def custom_textfield(placeholder="", value=""):
         return ft.TextField(
             value=value,
@@ -246,3 +243,4 @@ def main(page: ft.Page):
 
     page.add(card_container)
 ft.app(target=main)
+
