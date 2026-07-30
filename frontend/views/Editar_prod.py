@@ -2,7 +2,7 @@ import flet as ft
 import flet.canvas as cv
 
 def main(page: ft.Page):
-    page.title = "Añadir producto"
+    page.title = "Editar producto"
     page.window_width = 460
     page.window_height = 850
     page.padding = 20
@@ -59,7 +59,7 @@ def main(page: ft.Page):
                         height=38,
                     ),
                     ft.Text(
-                        "Añadir producto",
+                        "Editar producto",
                         size=20,
                         weight=ft.FontWeight.BOLD,
                         color=TEXT_COLOR,
@@ -204,7 +204,7 @@ def main(page: ft.Page):
 
     # Botón principal inferior
     btn_add = ft.ElevatedButton(
-        content=ft.Text("Añadir producto", size=15, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+        content=ft.Text("Editar producto", size=15, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         style=ft.ButtonStyle(
             bgcolor=PRIMARY_COLOR,
             shape=ft.RoundedRectangleBorder(radius=25),
