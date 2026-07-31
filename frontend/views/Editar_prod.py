@@ -14,6 +14,7 @@ def main(page: ft.Page):
     LIGHT_BG = "#EDF5FC"
     BORDER_COLOR = "#D1E5FB"
     TEXT_COLOR = "#1A365D"    
+    
     def custom_textfield(placeholder="", value=""):
         return ft.TextField(
             value=value,
@@ -48,12 +49,12 @@ def main(page: ft.Page):
                 controls=[
                     ft.Container(
                         content=ft.IconButton(
-                            icon=ft.Icons.ARROW_BACK_IOS_NEW_ROUNDED,
+                            icon=ft.Icons.ARROW_BACK_ROUNDED,
                             icon_size=16,
-                            icon_color=PRIMARY_COLOR,
+                            icon_color=ft.Colors.WHITE,
                             on_click=lambda _: print("Volver"),
                         ),
-                        bgcolor=LIGHT_BG,
+                        bgcolor="#7B93C0",
                         border_radius=20,
                         width=38,
                         height=38,

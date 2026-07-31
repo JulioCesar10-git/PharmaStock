@@ -14,7 +14,7 @@ def main(page: ft.Page):
     BLUE_DISABLED_BG = "#9BBDF3"
     BUTTON_BG = "#5086EC"
 
-    # --- Componente Auxiliar: Divisor con Línea Punteada ---
+    
     def dashed_section_header(title: str):
         return ft.Row(
             controls=[
@@ -25,7 +25,7 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
         )
 
-    # --- Fila 1: Rango de fecha (inicio) - Selectores (Dropdowns) ---
+     
     day_dropdown = ft.Dropdown(
         value="01",
         options=[ft.dropdown.Option(f"{i:02d}") for i in range(1, 32)],
@@ -75,7 +75,7 @@ def main(page: ft.Page):
         spacing=10,
     )
 
-    # --- Fila 2: Rango de fecha (final) - Campos Calculados Automáticamente ---
+
     def read_only_box(text_value: str):
         return ft.Container(
             content=ft.Text(text_value, color=NAVY_TITLE, weight=ft.FontWeight.W_500, size=14),
@@ -95,7 +95,7 @@ def main(page: ft.Page):
         spacing=10,
     )
 
-    # --- Tarjeta Modal Principal ---
+    
     modal_card = ft.Container(
         width=480,
         bgcolor=ft.Colors.WHITE,
@@ -151,7 +151,7 @@ def main(page: ft.Page):
 
                 ft.Container(height=10),
 
-                # Texto Informativo Central
+                # Texto informativo central
                 ft.Text(
                     "Se colocará automáticamente el final del rango de fecha\ndel reporte tomando en cuenta el inicio del mismo",
                     color=SUBTITLE_TEXT,
@@ -161,12 +161,12 @@ def main(page: ft.Page):
 
                 ft.Container(height=5),
 
-                # Línea Divisoria Inferior Punteada
+                
                 ft.Text("-------------------------------------------------------------------------", color=BLUE_BORDER, size=11),
 
                 ft.Container(height=5),
 
-                # Botón "Añadir reporte"
+                # Boton "Añadir reporte"
                 ft.ElevatedButton(
                     content=ft.Text("Añadir reporte", color=ft.Colors.WHITE, size=15, weight=ft.FontWeight.W_500),
                     style=ft.ButtonStyle(
