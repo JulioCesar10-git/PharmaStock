@@ -700,36 +700,43 @@ def menu_categorias():
         case 4:
             eliminar_categoria()
 
-def main():
-     print(" ==== PHARMASTOCK ==== ") 
-     print("Menu de opciones:")
-     print("1.- Proveedores")
-     print("2.- Medicamentos")
-     print("3.- Productos")
-     print("4.- Categorias")
-     print("5.- Generar reporte")
-     print("6.- Registrar venta")
-     print("7.- Ver corte de caja")
-
-     opc = int(input("Selecciona una opcion: "))
-
-     match opc:
-        
-         case 1:
-            menu_proveedores()
-         case 2:
-            menu_medicamentos()
-         case 3:
-            menu_productos()
-         case 4:
-            menu_categorias()
-         case 5:
-            generar_reporte()
-         case 6:
-            registrar_venta()
-         case 7:
-            ver_corte_de_caja()
+# MENU ADMINISTRADOR
+def menu_admin(usuario_actual):
+    print(" ==== PHARMASTOCK ==== ") 
+    print("Menu de opciones:")
+    print("1.- Proveedores")
+    print("2.- Medicamentos")
+    print("3.- Productos")
+    print("4.- Categorias")
+    print("5.- Generar reporte")
+    print("6.- Registrar venta")
+    print("7.- Ver corte de caja")
+    
+    opc = int(input("Selecciona una opcion: "))
+    
+    match opc:
             
-if __name__ == "__main__":
-    main()
+        case 1:
+            menu_proveedores()
+        case 2:
+            menu_medicamentos()
+        case 3:
+            menu_productos()
+        case 4:
+            menu_categorias()
+        case 5:
+            generar_reporte()
+        case 6:
+            registrar_venta(usuario_actual)
+        case 7:
+            ver_corte_de_caja(usuario_actual)
+
+def main():
+    user = login()
+
+    if user.usuario_cargo == 'admin':
+        menu_admin(user)
+            
+
+main()
 
