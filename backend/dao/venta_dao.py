@@ -1,5 +1,7 @@
 from backend.database.conexion import Conexion
 from backend.models.venta import Venta
+from backend.models.detalle_venta import DetalleVenta
+
 
 class VentaDAO:
 
@@ -43,7 +45,7 @@ class VentaDAO:
                     item["subtotal"]
                 ))
 
-                # DESCONTAR STOCK
+                # Descontar stock 
                 if item["tipo"] == "med":
 
                     sql_stock = """
@@ -99,7 +101,7 @@ class VentaDAO:
             print("Error al generar corte de caja")
             print(e)
             return None
-
+        
     @staticmethod
     def guardar_corte(usuario_id, total_ventas, total_dinero):
         try:
@@ -123,7 +125,8 @@ class VentaDAO:
             print("Error al guardar corte")
             print(e)
             return False
-        
+
+    @staticmethod
     def reporte_mensual(mes, anio):
         try:
             sql = """
@@ -161,7 +164,8 @@ class VentaDAO:
             print("Error al obtener reporte mensual")
             print(e)
             return []
-
+        
+    @staticmethod
     def reporte_mensual_medicamentos(mes, anio):
         try:
             sql = """
@@ -203,7 +207,8 @@ class VentaDAO:
             print("Error al obtener reporte de medicamentos")
             print(e)
             return []
-            
+
+    @staticmethod
     def reporte_mensual_productos(mes, anio):
 
         try:
