@@ -528,7 +528,7 @@ def registrar_venta(usuario_actual):
             nombre = item_encontrado.prod_nombre
             precio = item_encontrado.prod_precio
             existencia = item_encontrado.prod_existencia
-            item_id = item_encontrado.producto_id
+            item_id = item_encontrado.prod_id
 
         cantidad = int(input(f"Cantidad de '{nombre}': "))
         if cantidad > existencia:
@@ -570,10 +570,10 @@ def registrar_venta(usuario_actual):
     ticket = generar_ticket(venta, carrito)
     print(ticket)
 
-    enviar_correo = input("¿Enviar ticket por correo? (s/n): ")
-    if enviar_correo.lower() == "s":
-        correo_cliente = input("Correo del cliente: ")
-        enviar_ticket_por_correo(correo_cliente, ticket, venta.venta_folio)
+    #enviar_correo = input("¿Enviar ticket por correo? (s/n): ")
+    #if enviar_correo.lower() == "s":
+        #correo_cliente = input("Correo del cliente: ")
+        #enviar_ticket_por_correo(correo_cliente, ticket, venta.venta_folio)
 
 def generar_ticket(venta, carrito):
     ticket = "===== PHARMASTOCK =====\n"

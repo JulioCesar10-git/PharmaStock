@@ -29,14 +29,29 @@ class VentaDAO:
             venta_id = cursor.fetchone()[0]
 
             for item in carrito:
+                if item["tipo"] == "med":
+                    sql_detalle = """
+                        INSERT INTO detalle_ventas (detalle_venta_id, detalle_med_id,
+                        detalle_cantidad, detalle_precio_unitario, detalle_subtotal)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """
+                    sql_stock = """
+                        UPDATE medicamentos
+                        SET med_existencia = med_existencia - %s
+                        WHERE med_id = %s
+                    """
+                else:
+                    sql_detalle = """
+                        INSERT INTO detalle_ventas (detalle_venta_id, detalle_prod_id,
+                        detalle_cantidad, detalle_precio_unitario, detalle_subtotal)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """
+                    sql_stock = """
+                        UPDATE productos
+                        SET prod_existencia = prod_existencia - %s
+                        WHERE prod_id = %s
+                    """
 
-                sql_detalle = """
-
-                    INSERT INTO detalle_ventas (detalle_venta_id, detalle_producto_id,
-                    detalle_cantidad, detalle_precio_unitario, detalle_subtotal)
-                    VALUES (%s, %s, %s, %s, %s)
-
-                """
                 cursor.execute(sql_detalle, (
                     venta_id,
                     item["producto_id"],
@@ -44,26 +59,6 @@ class VentaDAO:
                     item["precio_unitario"],
                     item["subtotal"]
                 ))
-
-                # Descontar stock 
-                if item["tipo"] == "med":
-
-                    sql_stock = """
-
-                        UPDATE medicamentos
-                        SET med_existencia = med_existencia - %s
-                        WHERE med_id = %s
-
-                    """
-                else:
-
-                    sql_stock = """
-
-                        UPDATE productos
-                        SET prod_existencia = prod_existencia - %s
-                        WHERE producto_id = %s
-
-                    """
                 cursor.execute(sql_stock, (item["cantidad"], item["producto_id"]))
 
             conn.commit()
