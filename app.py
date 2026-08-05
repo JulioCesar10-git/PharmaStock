@@ -16,18 +16,20 @@ from backend.models.venta import Venta
 
 from backend.dao.usuario_dao import UsuarioDAO
 
+# API´S
+from backend.services.email_sender import enviar_ticket_por_correo
+
 from backend.dao.cpm_dao import CpmDAO
 from backend.services.reporte_pdf import generar_reporte_medicamentos_pdf
 from backend.services.reporte_pdf import generar_reporte_productos_pdf
 from backend.services.reporte_pdf import generar_reporte_cpm_pdf
 
+# FUNCIONES
 from decimal import Decimal
 from datetime import date
 
-# IMPORTAR FRONTEND
+# FRONTEND
 import flet as ft
-
-from frontend.views.main_window import main_window
 
 # FUNCIONES DE ADMINISTRADOR
 def registrar_usuario():
@@ -38,7 +40,7 @@ def registrar_usuario():
         print("=== Roles disponibles ===")
         print("1.- Tendero")
         print("2.- Bodeguero")
-        opcion_cargo = input("Elije el catgo")
+        opcion_cargo = input("Elije el cargo")
 
         match opcion_cargo:
             case "1":
@@ -51,6 +53,21 @@ def registrar_usuario():
     except Exception as e:
         print("Error al registrar usuario")
         print(e)
+
+# FUNCIONES DE LOGIN
+def login():
+    print("=========== PHARMASTOCK ===========")
+    usuario_correoElec = input("Correo: ")
+    usuario_password = input("Contraseña: ")
+
+    user = UsuarioDAO.login(usuario_correoElec, usuario_password)
+
+    if user:
+        print(f"Bienvenido {user.usuario_usuario}")
+        return user
+    else:
+        print("Usuario o contraseña incorrectos")
+        return None
 
 # FUNCIONES DE PROVEEDOR
 def crear_proveedor():
@@ -515,7 +532,7 @@ def registrar_venta(usuario_actual):
             nombre = item_encontrado.prod_nombre
             precio = item_encontrado.prod_precio
             existencia = item_encontrado.prod_existencia
-            item_id = item_encontrado.producto_id
+            item_id = item_encontrado.prod_id
 
         cantidad = int(input(f"Cantidad de '{nombre}': "))
         if cantidad > existencia:
@@ -556,6 +573,11 @@ def registrar_venta(usuario_actual):
 
     ticket = generar_ticket(venta, carrito)
     print(ticket)
+
+    enviar_correo = input("¿Enviar ticket por correo? (s/n): ")
+    if enviar_correo.lower() == "s":
+        correo_cliente = input("Correo del cliente: ")
+        enviar_ticket_por_correo(correo_cliente, ticket, venta.venta_folio)
 
 def generar_ticket(venta, carrito):
     ticket = "===== PHARMASTOCK =====\n"
@@ -682,37 +704,43 @@ def menu_categorias():
         case 4:
             eliminar_categoria()
 
-# def main():
-#     print(" ==== PHARMASTOCK ==== ") 
-#     print("Menu de opciones:")
-#     print("1.- Proveedores")
-#     print("2.- Medicamentos")
-#     print("3.- Productos")
-#     print("4.- Categorias")
-#     print("5.- Generar reporte")
-#     print("6.- Registrar venta")
-#     print("7.- Ver corte de caja")
-
-#     opc = int(input("Selecciona una opcion: "))
-
-#     match opc:
-        
-#         case 1:
-#             menu_proveedores()
-#         case 2:
-#             menu_medicamentos()
-#         case 3:
-#             menu_productos()
-#         case 4:
-#             menu_categorias()
-#         case 5:
-#             generar_reporte()
-#         case 6:
-#             registrar_venta()
-#         case 7:
-#             ver_corte_de_caja()
+# MENU ADMINISTRADOR
+def menu_admin(usuario_actual):
+    print(" ==== PHARMASTOCK ==== ") 
+    print("Menu de opciones:")
+    print("1.- Proveedores")
+    print("2.- Medicamentos")
+    print("3.- Productos")
+    print("4.- Categorias")
+    print("5.- Generar reporte")
+    print("6.- Registrar venta")
+    print("7.- Ver corte de caja")
+    
+    opc = int(input("Selecciona una opcion: "))
+    
+    match opc:
             
-# if __name__ == "__main__":
-#     main()
+        case 1:
+            menu_proveedores()
+        case 2:
+            menu_medicamentos()
+        case 3:
+            menu_productos()
+        case 4:
+            menu_categorias()
+        case 5:
+            generar_reporte()
+        case 6:
+            registrar_venta(usuario_actual)
+        case 7:
+            ver_corte_de_caja(usuario_actual)
 
-ft.app(target=main_window)
+def main():
+    user = login()
+
+    if user.usuario_cargo == 'admin':
+        menu_admin(user)
+            
+
+main()
+
