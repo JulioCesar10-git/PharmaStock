@@ -16,15 +16,19 @@ from backend.models.venta import Venta
 
 from backend.dao.usuario_dao import UsuarioDAO
 
+# API´S
+from backend.services.email_sender import enviar_ticket_por_correo
+
 from backend.dao.cpm_dao import CpmDAO
 from backend.services.reporte_pdf import generar_reporte_medicamentos_pdf
 from backend.services.reporte_pdf import generar_reporte_productos_pdf
 from backend.services.reporte_pdf import generar_reporte_cpm_pdf
 
+# FUNCIONES
 from decimal import Decimal
 from datetime import date
 
-# IMPORTAR FRONTEND
+# FRONTEND
 import flet as ft
 
 # FUNCIONES DE ADMINISTRADOR
@@ -570,10 +574,10 @@ def registrar_venta(usuario_actual):
     ticket = generar_ticket(venta, carrito)
     print(ticket)
 
-    #enviar_correo = input("¿Enviar ticket por correo? (s/n): ")
-    #if enviar_correo.lower() == "s":
-        #correo_cliente = input("Correo del cliente: ")
-        #enviar_ticket_por_correo(correo_cliente, ticket, venta.venta_folio)
+    enviar_correo = input("¿Enviar ticket por correo? (s/n): ")
+    if enviar_correo.lower() == "s":
+        correo_cliente = input("Correo del cliente: ")
+        enviar_ticket_por_correo(correo_cliente, ticket, venta.venta_folio)
 
 def generar_ticket(venta, carrito):
     ticket = "===== PHARMASTOCK =====\n"
