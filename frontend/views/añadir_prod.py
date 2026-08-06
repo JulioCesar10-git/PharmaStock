@@ -3,8 +3,8 @@ import flet.canvas as cv
 
 def main(page: ft.Page):
     page.title = "Añadir producto"
-    page.window_width = 460
-    page.window_height = 850
+    page.window_width = 510
+    page.window_height = 496
     page.padding = 20
     page.bgcolor = "#F4F7FB"  
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
@@ -214,10 +214,10 @@ def main(page: ft.Page):
     )
 
     card_container = ft.Container(
-        width=420,
+        width=500,
         bgcolor=ft.Colors.WHITE,
-        border_radius=20,
-        padding=20,
+        border_radius=25,
+        padding=25,
         shadow=ft.BoxShadow(
             spread_radius=1,
             blur_radius=15,
