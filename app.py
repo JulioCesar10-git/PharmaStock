@@ -474,6 +474,21 @@ def eliminar_categoria():
         print(e)
 
 # FUNCIONES DE TAREA
+def ver_tareas():
+    try:
+        tareas = TareaDAO.obtener_todos()
+
+        if len(tareas) == 0:
+            print("No hay tareas registradas.")
+        else:
+            print("============= Tareas =============")
+            for t in tareas:
+                print(f"ID: {t.tarea_id}, Asunto: {t.tarea_asunto}")
+
+    except Exception as e:
+        print("Error al obtener las tareas")
+        print(e)
+
 def crear_tarea():
     try:
 
@@ -744,6 +759,7 @@ def menu_tareas():
     print("Menu de opciones:")   
     print("1.- Crear tarea")
     print("2.- Eliminar tarea")
+    print("3.- Ver tareas")
 
     opc = int(input("Selecciona una opcion: "))
 
@@ -753,6 +769,9 @@ def menu_tareas():
             crear_tarea()   
         case 2: 
             eliminar_tarea()  
+        case 3:
+            ver_tareas()
+        
 
 # MENU ADMINISTRADOR
 def menu_admin(usuario_actual):
