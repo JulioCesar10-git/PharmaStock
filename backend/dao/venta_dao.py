@@ -1,5 +1,7 @@
 from backend.database.conexion import Conexion
 from backend.models.venta import Venta
+from backend.models.detalle_venta import DetalleVenta
+
 
 class VentaDAO:
 
@@ -27,14 +29,29 @@ class VentaDAO:
             venta_id = cursor.fetchone()[0]
 
             for item in carrito:
+                if item["tipo"] == "med":
+                    sql_detalle = """
+                        INSERT INTO detalle_ventas (detalle_venta_id, detalle_med_id,
+                        detalle_cantidad, detalle_precio_unitario, detalle_subtotal)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """
+                    sql_stock = """
+                        UPDATE medicamentos
+                        SET med_existencia = med_existencia - %s
+                        WHERE med_id = %s
+                    """
+                else:
+                    sql_detalle = """
+                        INSERT INTO detalle_ventas (detalle_venta_id, detalle_prod_id,
+                        detalle_cantidad, detalle_precio_unitario, detalle_subtotal)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """
+                    sql_stock = """
+                        UPDATE productos
+                        SET prod_existencia = prod_existencia - %s
+                        WHERE prod_id = %s
+                    """
 
-                sql_detalle = """
-
-                    INSERT INTO detalle_ventas (detalle_venta_id, detalle_producto_id,
-                    detalle_cantidad, detalle_precio_unitario, detalle_subtotal)
-                    VALUES (%s, %s, %s, %s, %s)
-
-                """
                 cursor.execute(sql_detalle, (
                     venta_id,
                     item["producto_id"],
@@ -42,26 +59,6 @@ class VentaDAO:
                     item["precio_unitario"],
                     item["subtotal"]
                 ))
-
-                # DESCONTAR STOCK
-                if item["tipo"] == "med":
-
-                    sql_stock = """
-
-                        UPDATE medicamentos
-                        SET med_existencia = med_existencia - %s
-                        WHERE med_id = %s
-
-                    """
-                else:
-
-                    sql_stock = """
-
-                        UPDATE productos
-                        SET prod_existencia = prod_existencia - %s
-                        WHERE producto_id = %s
-
-                    """
                 cursor.execute(sql_stock, (item["cantidad"], item["producto_id"]))
 
             conn.commit()
@@ -99,7 +96,7 @@ class VentaDAO:
             print("Error al generar corte de caja")
             print(e)
             return None
-
+        
     @staticmethod
     def guardar_corte(usuario_id, total_ventas, total_dinero):
         try:
@@ -123,7 +120,8 @@ class VentaDAO:
             print("Error al guardar corte")
             print(e)
             return False
-        
+
+    @staticmethod
     def reporte_mensual(mes, anio):
         try:
             sql = """
@@ -161,7 +159,8 @@ class VentaDAO:
             print("Error al obtener reporte mensual")
             print(e)
             return []
-
+        
+    @staticmethod
     def reporte_mensual_medicamentos(mes, anio):
         try:
             sql = """
@@ -203,7 +202,8 @@ class VentaDAO:
             print("Error al obtener reporte de medicamentos")
             print(e)
             return []
-            
+
+    @staticmethod
     def reporte_mensual_productos(mes, anio):
 
         try:
