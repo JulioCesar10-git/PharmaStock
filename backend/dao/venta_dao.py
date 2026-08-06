@@ -5,7 +5,6 @@ from backend.models.detalle_venta import DetalleVenta
 
 class VentaDAO:
 
-    @staticmethod
     def crear_venta(venta: Venta, carrito: list):
         try:
             conn = Conexion.obtener_conexion()
@@ -14,8 +13,8 @@ class VentaDAO:
 
             sql_venta = """
 
-                INSERT INTO ventas (venta_folio, venta_usuario_id, venta_subtotal, venta_iva, venta_total)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO ventas (venta_folio, venta_usuario_id, venta_subtotal, venta_iva, venta_total, venta_pago, venta_cambio)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING venta_id
 
             """
@@ -24,7 +23,9 @@ class VentaDAO:
                 venta.venta_usuario_id,
                 venta.venta_subtotal,
                 venta.venta_iva,
-                venta.venta_total
+                venta.venta_total,
+                venta.venta_pago,
+                venta.venta_cambio
             ))
             venta_id = cursor.fetchone()[0]
 
