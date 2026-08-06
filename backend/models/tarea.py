@@ -5,4 +5,4 @@ class Tarea:
         self.tarea_asunto = tarea_asunto
 
     def __str__(self):
-        return f"Tarea(tarea_id = {self.tarea_id}), Ausnto = '{self.tarea_asunto}'"
+        return f"Tarea(tarea_id = {self.tarea_id}), Ausunto = '{self.tarea_asunto}'"

@@ -16,6 +16,9 @@ from backend.models.venta import Venta
 
 from backend.dao.usuario_dao import UsuarioDAO
 
+from backend.dao.tarea_dao import TareaDAO
+from backend.models.tarea import Tarea
+
 # API´S
 from backend.services.email_sender import enviar_ticket_por_correo
 
@@ -470,6 +473,37 @@ def eliminar_categoria():
         print("Error al eliminar categoría")
         print(e)
 
+# FUNCIONES DE TAREA
+def crear_tarea():
+    try:
+
+        tarea_asunto = input("Ingresa el asunto de la tarea: ")
+    
+        nueva_tarea = Tarea(
+            tarea_asunto
+        )
+
+        TareaDAO.crear(nueva_tarea)
+        print("Tarea creada con exito")
+
+    except Exception as e:
+        print("Error al crear el una tarea")
+        print(e)
+
+def eliminar_tarea():
+    try:
+
+        id_tarea = int(input("Ingresa el ID de la tarea a eliminar: "))
+
+        if TareaDAO.eliminar(id_tarea):
+            print("Tarea eliminada con éxito.")
+        else:
+            print("No se encontró la tarea o no se pudo eliminar")
+
+    except Exception as e:
+            print("Error al eliminar tarea")
+            print(e)
+
 # FUNCIONES DE REPORTES MENSUALES(CPM)
 def generar_reporte():
     try:
@@ -704,6 +738,22 @@ def menu_categorias():
         case 4:
             eliminar_categoria()
 
+# TAREAS
+def menu_tareas():
+    print(" ==== PHARMASTOCK ==== ") 
+    print("Menu de opciones:")   
+    print("1.- Crear tarea")
+    print("2.- Eliminar tarea")
+
+    opc = int(input("Selecciona una opcion: "))
+
+    match opc:
+        
+        case 1:
+            crear_tarea()   
+        case 2: 
+            eliminar_tarea()  
+
 # MENU ADMINISTRADOR
 def menu_admin(usuario_actual):
     print(" ==== PHARMASTOCK ==== ") 
@@ -712,9 +762,11 @@ def menu_admin(usuario_actual):
     print("2.- Medicamentos")
     print("3.- Productos")
     print("4.- Categorias")
-    print("5.- Generar reporte")
-    print("6.- Registrar venta")
-    print("7.- Ver corte de caja")
+    print("5.- Tareas")
+    print("6.- Generar reporte")
+    print("7.- Registrar venta")
+    print("8.- Ver corte de caja")
+
     
     opc = int(input("Selecciona una opcion: "))
     
@@ -729,10 +781,12 @@ def menu_admin(usuario_actual):
         case 4:
             menu_categorias()
         case 5:
-            generar_reporte()
+            menu_tareas()
         case 6:
-            registrar_venta(usuario_actual)
+            generar_reporte()
         case 7:
+            registrar_venta(usuario_actual)
+        case 8:
             ver_corte_de_caja(usuario_actual)
 
 def main():
