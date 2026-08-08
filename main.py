@@ -1,18 +1,18 @@
 import flet as ft
 from datetime import datetime
 
-from theme import colores
-from state import ESTADO_UI
-from navegacion import nav_item, actualizar_avisos_nav
-from alertas_inventario import contar_avisos_inventario, obtener_avisos_inventario
-from components.recordatorios import crear_modulo_recordatorios, _aplicar_hover_boton
-from views.general import vista_general
-from views.inventario import vista_inventario
-from views.empleados import vista_empleados
-from views.reportes import vista_reportes
-from views.proveedores import vista_proveedores
-from views.ajustes import vista_ajustes
-from login_view import vista_login
+from frontend.theme import colores
+from frontend.state import ESTADO_UI
+from frontend.navegacion import nav_item, actualizar_avisos_nav
+from frontend.alertas_inventario import contar_avisos_inventario, obtener_avisos_inventario
+from frontend.components.recordatorios import crear_modulo_recordatorios, _aplicar_hover_boton
+from frontend.views.general import vista_general
+from frontend.views.inventario import vista_inventario
+from frontend.views.empleados import vista_empleados
+from frontend.views.reportes import vista_reportes
+from frontend.views.proveedores import vista_proveedores
+from frontend.views.ajustes import vista_ajustes
+from frontend.login_view import vista_login
 
 def main_window(page: ft.Page):
     # --- Configuración base de la página ---
@@ -145,7 +145,7 @@ def main_window(page: ft.Page):
         def confirmar_cierre(e_click):
             modal_confirmacion.open = False
             page.controls.clear()
-            page.add(vista_login(page, on_login_exitoso=entrar_a_la_app))
+            page.add(vista_login(page, on_login_exitoso=on_login_exitoso))
 
             snack_sesion_cerrada = ft.SnackBar(
                 content=ft.Text("Has cerrado sesión con éxito"),
@@ -493,16 +493,17 @@ def main_window(page: ft.Page):
         page.add(ft.Row([menu_lateral, contenido_principal], expand=True, spacing=0))
         page.update()
 
-    def entrar_a_la_app(usuario, password):
-        # El login ya fue validado en login_view.py contra los datos de Ajustes
+    def on_login_exitoso(usuario):
+        print(f"✅ Bienvenido {usuario.usuario_usuario}")
+
+        # Aquí después navegamos a la ventana principal
         estado_navegacion["seccion_actual"] = "General"
         page.controls.clear()
         construir_interfaz()
 
-    # --- Se muestra el login como pantalla inicial ---
     page.controls.clear()
-    page.add(vista_login(page, on_login_exitoso=entrar_a_la_app))
+    page.add(vista_login(page, on_login_exitoso=on_login_exitoso))
     page.update()
+    
 
-if __name__ == "__main__":
-    ft.run(main_window, assets_dir="assets")
+ft.app(target=main_window, assets_dir="frontend/assets")
