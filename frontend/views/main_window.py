@@ -1,4 +1,5 @@
 import flet as ft
+import math
 import calendar
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -519,33 +520,25 @@ def main_window(page: ft.Page):
         if stock <= 50 and "Stock bajo" not in alertas_locales:
             alertas_locales.insert(0, "Stock bajo")
 
-        # --- CONDICIÓN AUTOMÁTICA DE CADUCIDAD (Por caducar - Caducado) ---
+        # --- CONDICIÓN AUTOMÁTICA DE CADUCIDAD ---
         if caducidad and caducidad != "N/A":
             try:
-                # Asumimos formato "MM/YYYY" (ejemplo: "12/2026")
                 fecha_cad = datetime.strptime(caducidad, "%m/%Y")
-                # Fecha actual
                 hoy = datetime.now()
-                # Calculamos el límite superior (Fecha actual + 3 meses)
-                # Para evitar dependencias externas como dateutil, podemos comparar los meses en total:
                 diferencia_meses = (fecha_cad.year - hoy.year) * 12 + (fecha_cad.month - hoy.month)
 
-                # A) Si la fecha de caducidad ya pasó
                 if diferencia_meses < 0:
                     if "Caducado" not in alertas_locales:
                         alertas_locales.append("Caducado")
-                    # Si por algún motivo tenía la alerta "Por caducar", la removemos
                     if "Por caducar" in alertas_locales:
                         alertas_locales.remove("Por caducar")
 
-                # B) Si está por caducar dentro de los próximos 3 meses (entre 0 y 3 meses)
                 elif 0 <= diferencia_meses <= 3:
                     if "Por caducar" not in alertas_locales:
                         alertas_locales.append("Por caducar")
                     if "Caducado" in alertas_locales:
                         alertas_locales.remove("Caducado")
 
-                # C) Si falta más de 3 meses, removemos cualquier alerta de caducidad previa
                 else:
                     if "Por caducar" in alertas_locales:
                         alertas_locales.remove("Por caducar")
@@ -553,19 +546,43 @@ def main_window(page: ft.Page):
                         alertas_locales.remove("Caducado")
 
             except ValueError:
-                pass  # En caso de que la cadena no tenga formato "MM/YYYY"
+                pass
 
-        # 1. Placeholder de la imagen (recuadro azul claro)
+        # 1. Placeholder de la imagen
         imagen_placeholder = ft.Container(
-            height=90,
+            height=95,
             bgcolor="#E8F1FF",
             border_radius=ft.BorderRadius.only(top_left=10, top_right=10),
             border=ft.Border.all(1, "#A0C3FF"),
             content=ft.Icon(ft.Icons.IMAGE_OUTLINED, color="#A0C3FF", size=32),
-            alignment=ft.Alignment.CENTER,
+            alignment=ft.Alignment(0, 0),
         )
 
-        # 2. Insignias de Alertas (Stock bajo / Caducidad)
+        # 2. Botones de acción (Lápiz / Basurero) - Inician ocultos con opacidad 0
+        botones_accion = ft.Container(
+            opacity=0.0,  # Usamos opacidad para transición súper fluida
+            animate_opacity=200,
+            content=ft.Row([
+                ft.Container(
+                    content=ft.Icon(ft.Icons.EDIT_OUTLINED, size=14, color="#1E88E5"),
+                    bgcolor=ft.Colors.WHITE,
+                    shape=ft.BoxShape.CIRCLE,
+                    padding=6,
+                    shadow=ft.BoxShadow(blur_radius=4, color="#00000020"),
+                    on_click=lambda e: print(f"Editar {nombre}")
+                ),
+                ft.Container(
+                    content=ft.Icon(ft.Icons.DELETE_OUTLINED, size=14, color="#E53935"),
+                    bgcolor=ft.Colors.WHITE,
+                    shape=ft.BoxShape.CIRCLE,
+                    padding=6,
+                    shadow=ft.BoxShadow(blur_radius=4, color="#00000020"),
+                    on_click=lambda e: print(f"Eliminar {nombre}")
+                )
+            ], spacing=4)
+        )
+
+        # 3. Insignias de Alertas
         alertas_column = ft.Column(
             controls=[
                 ft.Container(
@@ -580,7 +597,6 @@ def main_window(page: ft.Page):
             horizontal_alignment=ft.CrossAxisAlignment.END,
         )
 
-        # Stack para superponer las alertas sobre la imagen
         header_stack = ft.Stack(
             controls=[
                 imagen_placeholder,
@@ -588,15 +604,21 @@ def main_window(page: ft.Page):
                     content=alertas_column,
                     top=6,
                     right=6,
+                ),
+                ft.Container(
+                    content=botones_accion,
+                    bottom=6,
+                    right=6,
                 )
             ]
         )
 
-        # 3. Cuerpo con información del medicamento
+        # 4. Cuerpo de la tarjeta
+        tiene_alerta_fecha = "Por caducar" in alertas_locales or "Caducado" in alertas_locales
+
         info_container = ft.Container(
             padding=8,
             content=ft.Column([
-                # Categoría y Precio
                 ft.Row([
                     ft.Container(
                         content=ft.Text(categoria, size=11, color="#2B529A", weight=ft.FontWeight.W_500),
@@ -607,68 +629,191 @@ def main_window(page: ft.Page):
                     ft.Text(f"${precio}", size=11, weight=ft.FontWeight.BOLD, color=COLOR_INPUT_BG)
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 
-                # Nombre del medicamento
-                ft.Text(nombre, size=15, weight=ft.FontWeight.BOLD, color=COLOR_INPUT_BG, overflow=ft.TextOverflow.ELLIPSIS),
+                ft.Text(nombre, size=14, weight=ft.FontWeight.BOLD, color=COLOR_INPUT_BG, overflow=ft.TextOverflow.ELLIPSIS),
                 
-                # Cantidad en stock
                 ft.Text(f"En almacén: {stock} pz", size=12, color="grey"),
 
-                # Fecha de caducidad
                 ft.Row([
-                    ft.Icon(ft.Icons.CALENDAR_TODAY_OUTLINED, size=11, color="#E53935" if "Por caducar" in alertas_locales else "grey"),
+                    ft.Icon(ft.Icons.CALENDAR_TODAY_OUTLINED, size=11, color="#E53935" if tiene_alerta_fecha else "grey"),
                     ft.Text(
                         f"Caducidad: {caducidad}",
                         size=10, 
-                        weight=ft.FontWeight.W_500 if "Por caducar" in alertas_locales else ft.FontWeight.NORMAL,
-                        color="#E53935" if "Por caducar" in alertas_locales else "grey"
+                        weight=ft.FontWeight.W_500 if tiene_alerta_fecha else ft.FontWeight.NORMAL,
+                        color="#E53935" if tiene_alerta_fecha else "grey"
                     )
                 ], spacing=3)
             ], spacing=3)
         )
 
-        # Verificar si el producto tiene problemas de fecha para cambiar color de texto/ícono
-        tiene_alerta_fecha = "Por caducar" in alertas_locales or "Caducado" in alertas_locales
-
-        ft.Row([
-            ft.Icon(ft.Icons.CALENDAR_TODAY_OUTLINED, size=11, color="#E53935" if tiene_alerta_fecha else "grey"),
-            ft.Text(
-                f"Caducidad: {caducidad}",
-                size=10, 
-                weight=ft.FontWeight.W_500 if tiene_alerta_fecha else ft.FontWeight.NORMAL,
-                color="#E53935" if tiene_alerta_fecha else "grey"
-            )
-        ], spacing=3)
-
-        return ft.Container(
+        # --- CONTENIDO BLANCO INTERIOR ---
+        tarjeta_interior = ft.Container(
             bgcolor=BG_CARD_WHITE,
             border_radius=12,
-            shadow=ft.BoxShadow(spread_radius=0, blur_radius=6, color="#00000010", offset=ft.Offset(0, 2)),
             content=ft.Column([header_stack, info_container], spacing=0)
         )
+
+        # --- GRADIENTES ---
+        gradiente_inactivo = ft.LinearGradient(
+            colors=["#00000000", "#00000000"],
+            begin=ft.Alignment(-1, -1),
+            end=ft.Alignment(1, 1)
+        )
+        
+        gradiente_activo = ft.LinearGradient(
+            colors=["#3B82F6", "#1D4ED8", "#4338CA"],
+            begin=ft.Alignment(-1, -1),
+            end=ft.Alignment(1, 1)
+        )
+
+        # --- CONTENEDOR PRINCIPAL INTERACTIVO ---
+        tarjeta_externa = ft.Container(
+            padding=2.5,
+            border_radius=14,
+            gradient=gradiente_inactivo,
+            scale=1.0,
+            shadow=ft.BoxShadow(spread_radius=0, blur_radius=6, color="#00000010", offset=ft.Offset(0, 2)),
+            animate_scale=ft.Animation(180, ft.AnimationCurve.EASE_OUT_CUBIC),
+            animate=ft.Animation(180, ft.AnimationCurve.EASE_OUT_CUBIC),
+            content=tarjeta_interior,
+            on_click=lambda e: None,  # 👈 OBLIGA A FLET A REGISTRAR INTERACTIVIDAD
+        )
+
+        # Función flexible que evalúa e.data como string o booleano
+        def al_pasar_mouse(e):
+            # Evaluación segura independientemente de la versión de Flet
+            esta_hover = str(e.data).lower() in ["true", "1"]
+
+            if esta_hover:
+                tarjeta_externa.scale = 1.04
+                tarjeta_externa.gradient = gradiente_activo
+                tarjeta_externa.shadow = ft.BoxShadow(
+                    spread_radius=1, 
+                    blur_radius=12, 
+                    color="#2563EB40", 
+                    offset=ft.Offset(0, 6)
+                )
+                botones_accion.opacity = 1.0  # Muestra con transición
+            else:
+                tarjeta_externa.scale = 1.0
+                tarjeta_externa.gradient = gradiente_inactivo
+                tarjeta_externa.shadow = ft.BoxShadow(
+                    spread_radius=0, 
+                    blur_radius=6, 
+                    color="#00000010", 
+                    offset=ft.Offset(0, 2)
+                )
+                botones_accion.opacity = 0.0  # Oculta suavemente
+
+            tarjeta_externa.update()
+
+        tarjeta_externa.on_hover = al_pasar_mouse
+
+        return tarjeta_externa
 
 
     def vista_inventario(page: ft.Page):
 
-        # ----------------------------------------------------
-        # GRID DE PRODUCTOS (AQUÍ DESPLEGAMOS LAS TARJETAS)
-        # ----------------------------------------------------
-        # Datos de prueba de medicamentos
+        # 1. Configuración de Paginación y Datos
+        PRODUCTOS_POR_PAGINA = 12
+        pagina_actual = [1]
+
         productos_ejemplo = [
-            {"nombre": "Paracetamol 500mg", "categoria": "Analgésico", "precio": 45.00, "stock": 120, "caducidad": "09/2026", "alertas": []},
-            {"nombre": "Amoxicilina 875mg", "categoria": "Antibiótico", "precio": 120.50, "stock": 5, "caducidad": "08/2026", "alertas": []},
-            {"nombre": "Ibuprofeno 400mg", "categoria": "Antiinflamatorio", "precio": 65.00, "stock": 2, "caducidad": "10/2026", "alertas": []},
-            {"nombre": "Omeprazol 20mg", "categoria": "Antiácido", "precio": 88.00, "stock": 45, "caducidad": "11/2026", "alertas": []},
-            {"nombre": "Loratadina 10mg", "categoria": "Antihistamínico", "precio": 35.00, "stock": 80, "caducidad": "06/2026", "alertas": []},
-            {"nombre": "Metformina 850mg", "categoria": "Antidiabético", "precio": 110.00, "stock": 3, "caducidad": "12/2026", "alertas": []},
-            {"nombre": "Levocetirizina", "categoria": "Antíhistamínico", "precio": 150.00, "stock": 51, "caducidad": "12/2026", "alertas": []},
+            {"nombre": f"Medicamento {i+1}", "categoria": "General", "precio": 50.0 + i, "stock": 10 + i, "caducidad": "08/2026", "alertas": []}
+            for i in range(50)
         ]
-        
-        # --- CÁLCULOS DINÁMICOS ---
-        total_productos = len(productos_ejemplo)
-        total_unidades_stock = sum(prod["stock"] for prod in productos_ejemplo)
 
         # ----------------------------------------------------
-        # 2. BARRA DE BÚSQUEDA Y DIÁLOGOS
+        # CONTENEDORES REACTIVOS
+        # ----------------------------------------------------
+        grid_productos = ft.GridView(
+            expand=True,
+            runs_count=6,
+            child_aspect_ratio=0.90,
+            spacing=10,
+            run_spacing=10,
+        )
+
+        row_paginacion = ft.Row(alignment=ft.MainAxisAlignment.CENTER, spacing=8)
+        texto_resumen_inventario = ft.Text("", size=11, color="#3B71E8", weight=ft.FontWeight.BOLD)
+
+        def actualizar_vista():
+            total_prods = len(productos_ejemplo)
+            total_unidades = sum(prod["stock"] for prod in productos_ejemplo)
+            total_paginas = max(1, math.ceil(total_prods / PRODUCTOS_POR_PAGINA))
+
+            # Actualizar texto dinámico del encabezado
+            texto_resumen_inventario.value = f"{total_prods} productos | {total_unidades} medicamentos"
+
+            if pagina_actual[0] > total_paginas:
+                pagina_actual[0] = total_paginas
+
+            # A) Selección de productos por página
+            inicio = (pagina_actual[0] - 1) * PRODUCTOS_POR_PAGINA
+            fin = inicio + PRODUCTOS_POR_PAGINA
+            productos_pagina = productos_ejemplo[inicio:fin]
+
+            # B) Renderizar Tarjetas
+            grid_productos.controls = [
+                crear_tarjeta_producto(
+                    nombre=prod["nombre"],
+                    categoria=prod["categoria"],
+                    precio=prod["precio"],
+                    stock=prod["stock"],
+                    caducidad=prod.get("caducidad", "N/A"),
+                    alertas=prod["alertas"]
+                ) for prod in productos_pagina
+            ]
+
+            # C) Renderizar Controles de Paginación
+            row_paginacion.controls.clear()
+
+            def cambiar_pagina(nueva_pag):
+                pagina_actual[0] = nueva_pag
+                actualizar_vista()
+                page.update()
+
+            # Botón Anterior
+            row_paginacion.controls.append(
+                ft.IconButton(
+                    icon=ft.Icons.KEYBOARD_ARROW_LEFT,
+                    icon_color=COLOR_AZUL_CARD,
+                    bgcolor="#D0E0FF",
+                    disabled=(pagina_actual[0] == 1),
+                    on_click=lambda _: cambiar_pagina(pagina_actual[0] - 1)
+                )
+            )
+
+            # Botones Numéricos
+            for i in range(1, total_paginas + 1):
+                es_activa = (i == pagina_actual[0])
+                row_paginacion.controls.append(
+                    ft.Container(
+                        content=ft.Text(
+                            str(i),
+                            color=ft.Colors.WHITE if es_activa else COLOR_INPUT_BG,
+                            weight=ft.FontWeight.BOLD if es_activa else ft.FontWeight.NORMAL
+                        ),
+                        bgcolor=COLOR_AZUL_CARD if es_activa else None,
+                        border_radius=15,
+                        padding=ft.Padding.symmetric(horizontal=12, vertical=6),
+                        on_click=lambda _, p=i: cambiar_pagina(p),
+                        ink=True
+                    )
+                )
+
+            # Botón Siguiente
+            row_paginacion.controls.append(
+                ft.IconButton(
+                    icon=ft.Icons.KEYBOARD_ARROW_RIGHT,
+                    icon_color=COLOR_AZUL_CARD,
+                    bgcolor="#D0E0FF",
+                    disabled=(pagina_actual[0] == total_paginas),
+                    on_click=lambda _: cambiar_pagina(pagina_actual[0] + 1)
+                )
+            )
+
+        # ----------------------------------------------------
+        # BARRA DE BÚSQUEDA
         # ----------------------------------------------------
         bar_busqueda = ft.Row([
             ft.TextField(
@@ -684,9 +829,9 @@ def main_window(page: ft.Page):
             ft.ElevatedButton("Filtros", icon=ft.Icons.FILTER_ALT, bgcolor="#89AEEA", color=ft.Colors.WHITE, height=38),
             ft.ElevatedButton("Ordenar", icon=ft.Icons.GRID_VIEW, bgcolor="#89AEEA", color=ft.Colors.WHITE, height=38),
         ], spacing=10)
-        
+
         # ----------------------------------------------------
-        # LÓGICA DE FARMACIA Y SUCURSAL
+        # DIÁLOGOS DE EDICIÓN
         # ----------------------------------------------------
         texto_nombre_farmacia = ft.Text(
             ESTADO_FARMACIA["nombre"], 
@@ -732,7 +877,7 @@ def main_window(page: ft.Page):
             dialogo_farmacia.open = True
             page.update()
 
-        # --- EDITAR SUCURSAL ---
+        # --- SUCURSAL ---
         texto_sucursal = ft.Text(
             f"Sucursal: {ESTADO_FARMACIA['sucursal']}", 
             size=11, 
@@ -788,12 +933,7 @@ def main_window(page: ft.Page):
                     on_click=abrir_dialogo_farmacia
                 ),
                 ft.Container(
-                    content=ft.Text(
-                        f"{total_productos} productos | {total_unidades_stock} medicamentos",
-                        size=11, 
-                        color="#3B71E8", 
-                        weight=ft.FontWeight.BOLD
-                    ),
+                    content=texto_resumen_inventario,
                     bgcolor="#D0E0FF",
                     padding=ft.Padding.symmetric(horizontal=10, vertical=4),
                     border_radius=12
@@ -812,39 +952,10 @@ def main_window(page: ft.Page):
             ], spacing=2)
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
-        # Creamos el GridView adaptable a distintas pantallas
-        grid_productos = ft.GridView(
-            expand=True,
-            runs_count=6,
-            max_extent=None,  # Ancho máximo deseado para cada tarjeta
-            child_aspect_ratio=0.90,  # Proporción Ancho / Alto de cada celda
-            spacing=10,
-            run_spacing=10,
-            controls=[
-                crear_tarjeta_producto(
-                    nombre=prod["nombre"],
-                    categoria=prod["categoria"],
-                    precio=prod["precio"],
-                    stock=prod["stock"],
-                    caducidad=prod.get("caducidad", "N/A"),
-                    alertas=prod["alertas"]
-                ) for prod in productos_ejemplo
-            ]
-        )
+        # Cargar vista inicial
+        actualizar_vista()
 
-        # Paginación Inferior
-        paginacion = ft.Row([
-            ft.IconButton(icon=ft.Icons.KEYBOARD_ARROW_LEFT, icon_color=COLOR_AZUL_CARD, bgcolor="#D0E0FF"),
-            ft.Container(content=ft.Text("1", color=ft.Colors.WHITE), bgcolor=COLOR_AZUL_CARD, border_radius=15, padding=ft.Padding.symmetric(horizontal=12, vertical=6)),
-            ft.Text("2", color=COLOR_INPUT_BG),
-            ft.Text("3", color=COLOR_INPUT_BG),
-            ft.Text(".", color=COLOR_INPUT_BG),
-            ft.Text(".", color=COLOR_INPUT_BG),
-            ft.Text("5", color=COLOR_INPUT_BG),
-            ft.IconButton(icon=ft.Icons.KEYBOARD_ARROW_RIGHT, icon_color=COLOR_AZUL_CARD, bgcolor="#D0E0FF"),
-        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10)
-
-        # Ensamble de la Vista completa
+        # Ensamble Final
         return ft.Container(
             bgcolor="#EBF3FF",
             border_radius=15,
@@ -854,8 +965,8 @@ def main_window(page: ft.Page):
                 bar_busqueda,
                 header_farmacia,
                 ft.Divider(color="#A0C3FF", height=1),
-                grid_productos,  # <--- Aquí añadimos el catálogo de tarjetas
-                paginacion
+                grid_productos,
+                row_paginacion
             ], spacing=15, expand=True)
         )
 
