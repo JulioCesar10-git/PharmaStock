@@ -5,7 +5,7 @@ from frontend.theme import colores
 from frontend.state import ESTADO_UI
 from frontend.navegacion import nav_item, actualizar_avisos_nav
 from frontend.alertas_inventario import contar_avisos_inventario, obtener_avisos_inventario
-from frontend.components.recordatorios import crear_modulo_recordatorios
+from frontend.components.recordatorios import crear_modulo_recordatorios, _aplicar_hover_boton
 from frontend.views.general import vista_general
 from frontend.views.inventario import vista_inventario
 from frontend.views.empleados import vista_empleados
@@ -134,6 +134,92 @@ def main_window(page: ft.Page):
         dlg.open = True
         page.update()
 
+    # --- Cierre de sesión: pide confirmación antes de regresar al login ---
+    def cerrar_sesion(e):
+        c = colores()
+
+        def cerrar_dialogo(e_click):
+            modal_confirmacion.open = False
+            page.update()
+
+        def confirmar_cierre(e_click):
+            modal_confirmacion.open = False
+            page.controls.clear()
+            page.add(vista_login(page, on_login_exitoso=on_login_exitoso))
+
+            snack_sesion_cerrada = ft.SnackBar(
+                content=ft.Text("Has cerrado sesión con éxito"),
+                bgcolor=ft.Colors.GREEN_600,
+                open=True,
+            )
+            page.overlay.append(snack_sesion_cerrada)
+            page.update()
+
+        # --- Botones del diálogo, mismo estilo/efecto hover que "Confirmar eliminación" ---
+        SOMBRA_NORMAL_DLG = ft.BoxShadow(blur_radius=8, spread_radius=1, color=c.get("sombra", "#A9B8CE"), offset=ft.Offset(0, 2))
+        SOMBRA_HOVER_DLG = ft.BoxShadow(blur_radius=12, spread_radius=2, color=c.get("sombra", "#A9B8CE"), offset=ft.Offset(0, 3))
+
+        btn_cancelar = ft.Container(
+            content=ft.Text("Cancelar", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD, size=14),
+            padding=ft.Padding.symmetric(horizontal=10, vertical=6),
+            border_radius=30,
+            bgcolor=c["boton_secundario"],
+            shadow=SOMBRA_NORMAL_DLG,
+            on_click=cerrar_dialogo,
+            ink=True,
+            expand=True,
+            alignment=ft.Alignment.CENTER,
+        )
+        _aplicar_hover_boton(btn_cancelar, SOMBRA_NORMAL_DLG, SOMBRA_HOVER_DLG, escala_hover=1.05)
+
+        btn_confirmar = ft.Container(
+            content=ft.Text("Cerrar sesión", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD, size=14),
+            padding=ft.Padding.symmetric(horizontal=10, vertical=6),
+            border_radius=30,
+            bgcolor=c["text_red"],
+            on_click=confirmar_cierre,
+            ink=True,
+            expand=True,
+            alignment=ft.Alignment.CENTER,
+        )
+        _aplicar_hover_boton(btn_confirmar, SOMBRA_NORMAL_DLG, SOMBRA_HOVER_DLG, escala_hover=1.05)
+
+        # --- AlertDialog de confirmación (título, texto y botones centrados) ---
+        modal_confirmacion = ft.AlertDialog(
+            title=ft.Text(
+                "Confirmar cierre de sesión",
+                color=c["input_bg"],
+                weight=ft.FontWeight.BOLD,
+                size=22,
+                text_align=ft.TextAlign.CENTER,
+            ),
+            title_padding=ft.Padding.only(left=24, top=24, right=24, bottom=0),
+            content=ft.Container(
+                width=450,
+                content=ft.Text(
+                    "¿Está segur@ de cerrar la sesión?",
+                    color=c["input_bg"],
+                    size=18,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+            ),
+            actions=[
+                ft.Container(
+                    width=450,
+                    content=ft.Row(
+                        [btn_cancelar, btn_confirmar],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=20,
+                    ),
+                )
+            ],
+            actions_alignment=ft.MainAxisAlignment.CENTER,
+        )
+
+        page.overlay.append(modal_confirmacion)
+        modal_confirmacion.open = True
+        page.update()
+
     # --- Constantes del menú de navegación ---
     ORDEN_SECCIONES_PRINCIPALES = ["General", "Inventario", "Empleados", "Reportes", "Proveedores"]
     ALTO_ITEM_NAV = 48
@@ -259,6 +345,26 @@ def main_window(page: ft.Page):
                     titulo_seccion_text,
                     ft.Row(
                         [
+                            ft.Container(
+                                height=36,
+                                padding=ft.Padding.symmetric(horizontal=14, vertical=0),
+                                border_radius=18,
+                                bgcolor=ft.Colors.WHITE,
+                                alignment=ft.Alignment.CENTER,
+                                content=ft.Row(
+                                    [
+                                        ft.Icon(ft.Icons.MEETING_ROOM_OUTLINED, color=c["azul_card"], size=20),
+                                        ft.Text("Salir", color=c["azul_card"], size=14, weight=ft.FontWeight.W_600),
+                                    ],
+                                    spacing=6,
+                                    tight=True,
+                                    alignment=ft.MainAxisAlignment.CENTER,
+                                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                                ),
+                                on_click=cerrar_sesion,
+                                ink=True,
+                                tooltip="Cerrar sesión",
+                            ),
                             ft.Container(
                                 width=36,
                                 height=36,
