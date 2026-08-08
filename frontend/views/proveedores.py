@@ -9,6 +9,9 @@ import requests
 from frontend.theme import colores
 from frontend.state import PROVEEDORES_GLOBALES, PRODUCTOS_GLOBALES, ESTADO_UI
 
+from backend.dao.proveedor_dao import ProveedorDAO
+from backend.models.proveedor import Proveedor
+
 PROVEEDORES_POR_PAGINA = 7
 MAX_PAGINAS_VISIBLES = 5
 ANCHO_PAGINADOR_NUMEROS = 480
@@ -436,6 +439,22 @@ def _construir_vista_editar_proveedor(page: ft.Page, proveedor, al_regresar_call
         proveedor["fraccion"] = dd_fraccion.value or proveedor.get("fraccion", "Fracción primera")
         proveedor["contacto"] = f"({dd_lada.value}){txt_telefono.value}"
         proveedor["productos_lista"] = productos_seleccionados
+
+        prov_obj = Proveedor(
+        prov_id=proveedor.get("prov_id"),
+        prov_nombre=proveedor["nombre"],
+        prov_telefono=proveedor["contacto"],
+        prov_calle=proveedor["calle"],
+        prov_num=proveedor["numero"],
+        prov_colonia=proveedor["colonia"],
+        prov_municipio="",
+        prov_estado="",
+        prov_codigoPostal=int(proveedor["cp"]) if proveedor.get("cp", "").isdigit() else 0,
+        prov_correo=proveedor["correo"],
+        prov_tipo=proveedor["tipo"]
+        )
+        ProveedorDAO.actualizar(prov_obj)
+
         proveedor["productos"] = len(productos_seleccionados)
 
         al_regresar_callback()
@@ -580,6 +599,26 @@ def vista_proveedores(page: ft.Page):
     c = colores()
     modo_oscuro = ESTADO_UI["modo_oscuro"]
 
+    def _cargar_proveedores():
+        proveedores = ProveedorDAO.obtener_todos()
+        return [
+            {
+                "no": i + 1,
+                "prov_id": p.prov_id,
+                "nombre": p.prov_nombre,
+                "tipo": p.prov_tipo,
+                "productos": 0,
+                "contacto": p.prov_telefono,
+                "correo": p.prov_correo,
+                "cp": str(p.prov_codigoPostal),
+                "colonia": p.prov_colonia,
+                "calle": p.prov_calle,
+                "numero": p.prov_num,
+            }
+            for i, p in enumerate(proveedores)
+        ]
+    proveedores_ejemplo = _cargar_proveedores()
+
     # --- En modo oscuro, la tarjeta de la lista y los botones (incluida la
     #     paginación) usan el mismo color de sombra que el resto de la UI oscura ---
     if modo_oscuro:
@@ -602,7 +641,6 @@ def vista_proveedores(page: ft.Page):
         color_hint_campo = ft.Colors.with_opacity(0.45, c["borde_campo"])
         color_label_campo = "#004C95"
 
-    proveedores_ejemplo = PROVEEDORES_GLOBALES
     proveedores_filtrados = list(proveedores_ejemplo)
     pagina_actual = [1]
     filtro_tipo_actual = {"tipo": None}
@@ -704,9 +742,10 @@ def vista_proveedores(page: ft.Page):
             page.update()
 
         def _confirmar_eliminar(e):
-            proveedores_ejemplo.remove(proveedor)
-            if proveedor in proveedores_filtrados:
-                proveedores_filtrados.remove(proveedor)
+            ProveedorDAO.eliminar(proveedor["prov_id"])
+            proveedores_ejemplo[:] = _cargar_proveedores()
+            proveedores_filtrados[:] = list(proveedores_ejemplo)
+
             modal_eliminar.open = False
             actualizar_vista()
 
@@ -1035,24 +1074,22 @@ def vista_proveedores(page: ft.Page):
             return
 
         colonia_valida = dd_colonia.value not in (None, "Ingresa un C.P. válido", "No se encontraron resultados para ese C.P.")
-        nuevo = {
-            "no": 1,
-            "nombre": nombre_val or "Sin nombre",
-            "tipo": dd_tipo.value or "Medicamentos",
-            "productos": 10,
-            "contacto": f"({dd_lada.value}){txt_telefono.value}",
-            "correo": txt_correo.value or "",
-            "cp": txt_cp.value or "",
-            "colonia": dd_colonia.value if colonia_valida else "",
-            "calle": txt_calle.value or "",
-            "numero": txt_numero.value or "",
-        }
-        proveedores_ejemplo.insert(0, nuevo)
-        proveedores_filtrados.insert(0, nuevo)
 
-        for indice, proveedor in enumerate(proveedores_ejemplo, start=1):
-            proveedor["no"] = indice
-
+        nuevo_prov = Proveedor(
+        prov_nombre=txt_nombre.value or "Sin nombre",
+        prov_telefono=f"({dd_lada.value}){txt_telefono.value}",
+        prov_calle=txt_calle.value or "",
+        prov_num=txt_numero.value or "",
+        prov_colonia=dd_colonia.value if colonia_valida else "",
+        prov_municipio="",
+        prov_estado="",
+        prov_codigoPostal=int(txt_cp.value) if txt_cp.value and txt_cp.value.isdigit() else 0,
+        prov_correo=txt_correo.value or "",
+        prov_tipo=dd_tipo.value or "Medicamentos"
+        )
+        ProveedorDAO.crear(nuevo_prov)
+        proveedores_ejemplo[:] = _cargar_proveedores()
+        proveedores_filtrados[:] = list(proveedores_ejemplo)
         pagina_actual[0] = 1
 
         txt_nombre.value = ""
@@ -1063,11 +1100,12 @@ def vista_proveedores(page: ft.Page):
         txt_numero.value = ""
         dd_colonia.options = [ft.dropdown.Option("Ingresa un C.P. válido")]
         dd_colonia.value = "Ingresa un C.P. válido"
+
         modal.open = False
 
         actualizar_vista()
 
-        snack = ft.SnackBar(content=ft.Text(f"Proveedor {nuevo['nombre']} añadido con éxito", color=ft.Colors.WHITE), bgcolor="#2E7D32")
+        snack = ft.SnackBar(content=ft.Text(f"Proveedor {nuevo_prov.prov_nombre} añadido con éxito", color=ft.Colors.WHITE), bgcolor="#2E7D32")
         page.overlay.append(snack)
         snack.open = True
 
