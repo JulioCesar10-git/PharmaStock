@@ -8,6 +8,10 @@ from frontend.theme import colores
 from frontend.state import ESTADO_UI
 from frontend.components.empleado_card import crear_tarjeta_empleado
 
+# AGREGAR BACKEND
+from backend.dao.usuario_dao import UsuarioDAO
+from backend.models.usuario import Usuario
+
 # --- Aplica el mismo efecto hover (zoom + sombra más marcada) que el
 #     botón "Agregar tarea" de recordatorios.py, a un Container-botón ---
 def _aplicar_hover_boton_paginacion(boton, sombra_normal, sombra_hover, escala_hover=1.05):
@@ -28,48 +32,11 @@ def _aplicar_hover_boton_paginacion(boton, sombra_normal, sombra_hover, escala_h
 
     boton.on_hover = _al_pasar_mouse
 
-# --- Datos de ejemplo: empleados agrupados por nivel/puesto ---
-NIVELES_EJEMPLO = [
-    {
-        "titulo": "Administradores",
-        "empleados": [
-            {"nombre": "Carlos Mendoza", "puesto": "Administrador", "telefono": "2415695691", "correo": "carlos.admin@gmail.com"},
-            {"nombre": "María Fernanda", "puesto": "Administrador", "telefono": "2415695692", "correo": "maria.admin@gmail.com"},
-        ],
-    },
-    {
-        "titulo": "Cajeros",
-        "empleados": [
-            {"nombre": "Ana Sofía", "puesto": "Cajero", "telefono": "2415695693", "correo": "ana.cajero@gmail.com"},
-            {"nombre": "Luis Alberto", "puesto": "Cajero", "telefono": "2415695694", "correo": "luis.cajero@gmail.com"},
-            {"nombre": "Brenda Gómez", "puesto": "Cajero", "telefono": "2415695695", "correo": "brenda.cajero@gmail.com"},
-        ],
-    },
-    {
-        "titulo": "Almacenistas",
-        "empleados": [
-            {"nombre": "Jorge Ramírez", "puesto": "Almacenista", "telefono": "2415695696", "correo": "jorge.almacen@gmail.com"},
-            {"nombre": "Diana Pérez", "puesto": "Almacenista", "telefono": "2415695697", "correo": "diana.almacen@gmail.com"},
-            {"nombre": "Roberto Sánchez", "puesto": "Almacenista", "telefono": "2415695698", "correo": "roberto.almacen@gmail.com"},
-            {"nombre": "Lucía Torres", "puesto": "Almacenista", "telefono": "2415695699", "correo": "lucia.almacen@gmail.com"},
-            {"nombre": "Miguel Ángel", "puesto": "Almacenista", "telefono": "2415695700", "correo": "miguel.almacen@gmail.com"},
-            {"nombre": "Valeria Ruiz", "puesto": "Almacenista", "telefono": "2415695701", "correo": "valeria.almacen@gmail.com"},
-            {"nombre": "Fernando Castro", "puesto": "Almacenista", "telefono": "2415695702", "correo": "fernando.almacen@gmail.com"},
-            {"nombre": "Gabriela Ortiz", "puesto": "Almacenista", "telefono": "2415695703", "correo": "gabriela.almacen@gmail.com"},
-            {"nombre": "Ricardo Morales", "puesto": "Almacenista", "telefono": "2415695704", "correo": "ricardo.almacen@gmail.com"},
-            {"nombre": "Patricia Jiménez", "puesto": "Almacenista", "telefono": "2415695705", "correo": "patricia.almacen@gmail.com"},
-            {"nombre": "Alejandro Vargas", "puesto": "Almacenista", "telefono": "2415695706", "correo": "alejandro.almacen@gmail.com"},
-            {"nombre": "Claudia Domínguez", "puesto": "Almacenista", "telefono": "2415695707", "correo": "claudia.almacen@gmail.com"},
-        ],
-    },
+PUESTOS_DISPONIBLES = [
+    "Administrador",
+    "Cajero",
+    "Almacenista",
 ]
-
-# --- Constantes de configuración (mapeo de puestos, códigos de país, etc.) ---
-MAPA_NIVELES = {
-    "Administrador": "Administradores",
-    "Cajero": "Cajeros",
-    "Almacenista": "Almacenistas",
-}
 
 CODIGOS_PAIS = [
     ("🇲🇽 +52", "+52"),
@@ -81,13 +48,41 @@ CODIGOS_PAIS = [
     ("🇨🇱 +56", "+56"),
 ]
 
-PUESTOS_DISPONIBLES = [
-    "Administrador",
-    "Cajero",
-    "Almacenista",
-]
+#NUEVO AGREGADO
+MAPA_ROL_NIVEL = {
+    "admin": "Administradorr",
+    "tendero": "Cajeros",
+    "bodeguero": "Almacenistas",
+}
+
+def _cargar_niveles():
+    usuarios = UsuarioDAO.obtener_todos()
+    niveles = {
+        "Administradorr": [],
+        "Cajeros": [],
+        "Almacenistas": [],
+    }
+    for u in usuarios:
+        nivel = MAPA_ROL_NIVEL.get(u.usuario_cargo, "Cajeros")
+        nombre = f"{u.usuario_usuario} {u.usuario_apellidoPat or ''} {u.usuario_apellidoMat or ''}".strip()
+        niveles[nivel].append({
+            "usuario_id": u.usuario_id,
+            "nombre": nombre,
+            "puesto": nivel[:-1] if nivel != "Almacenistas" else "Almacenista",
+            "telefono": u.usuario_telefono or "",
+            "correo": u.usuario_correoElec,
+            "imagen": u.usuario_imagen,
+        })
+    return [
+        {"titulo": "Administradores", "empleados": niveles["Administradorr"]},
+        {"titulo": "Cajeros", "empleados": niveles["Cajeros"]},
+        {"titulo": "Almacenistas", "empleados": niveles["Almacenistas"]},
+    ]
+
+NIVELES_EJEMPLO = _cargar_niveles()
 
 ALTO_FILA_EMPLEADOS = 170
+
 
 # --- Limita el TextField de teléfono a solo dígitos, máximo 10 ---
 def _formato_telefono(e):
@@ -381,10 +376,6 @@ def _construir_dialogo_agregar_usuario(page: ft.Page, al_guardar_callback=None):
             err_contrasena.value = "Es necesario colocar una contraseña"
             err_contrasena.visible = True
             formulario_valido = False
-        elif len(contrasena_val) <= 8:
-            err_contrasena.value = "La contraseña debe tener más de 8 caracteres"
-            err_contrasena.visible = True
-            formulario_valido = False
         else:
             err_contrasena.visible = False
 
@@ -395,18 +386,28 @@ def _construir_dialogo_agregar_usuario(page: ft.Page, al_guardar_callback=None):
         nombre_completo = f"{nombre_val} {apellidos_val}"
         puesto_val = dropdown_puesto.value
 
-        titulo_nivel = MAPA_NIVELES.get(puesto_val, "Almacenistas")
+        MAPA_PUESTO_ROL = {
+        "Administrador": "admin",
+        "Cajero": "tendero",
+        "Almacenista": "bodeguero",
+        }
 
-        for nivel in NIVELES_EJEMPLO:
-            if nivel["titulo"] == titulo_nivel:
-                nivel["empleados"].append({
-                    "nombre": nombre_completo,
-                    "puesto": puesto_val,
-                    "telefono": digitos_telefono,
-                    "correo": correo_val,
-                    "imagen": imagen_empleado_seleccionada["path"],
-                })
-                break
+        rol = MAPA_PUESTO_ROL.get(puesto_val, "tendero")
+        apellidos_partes = apellidos_val.split(" ", 1)
+        apellido_pat = apellidos_partes[0] if len(apellidos_partes) > 0 else ""
+        apellido_mat = apellidos_partes[1] if len(apellidos_partes) > 1 else ""
+
+        UsuarioDAO.registrar(
+            usuario_usuario=nombre_val,
+            usuario_correoElec=correo_val,
+            usuario_password=contrasena_val,
+            usuario_cargo=rol,
+            usuario_apellidoPat=apellido_pat,
+            usuario_apellidoMat=apellido_mat,
+            usuario_telefono=f"({dropdown_codigo_pais.value}){digitos_telefono}",
+            usuario_imagen=imagen_empleado_seleccionada["path"]
+        )
+        NIVELES_EJEMPLO[:] = _cargar_niveles()
 
         if al_guardar_callback:
             al_guardar_callback()
@@ -417,20 +418,14 @@ def _construir_dialogo_agregar_usuario(page: ft.Page, al_guardar_callback=None):
         cerrar_dialogo(e)
 
     boton_guardar = ft.Container(
-        content=ft.Text("Añadir empleado", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD, size=16),
-        bgcolor=c["boton_secundario"], border_radius=22, padding=ft.Padding.symmetric(vertical=7, horizontal=20),
-        margin=ft.Margin.symmetric(horizontal=10, vertical=4),
+        content=ft.Text("Añadir empleado", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD, size=18),
+        bgcolor=c["boton_secundario"], border_radius=30, padding=10,
+        shadow=ft.BoxShadow(blur_radius=10, spread_radius=1, color="#A9B8CE", offset=ft.Offset(0, 3)),
         alignment=ft.Alignment.CENTER, on_click=guardar_usuario, ink=True,
-    )
-    _aplicar_hover_boton_paginacion(
-        boton_guardar,
-        ft.BoxShadow(blur_radius=10, spread_radius=1, color="#A9B8CE", offset=ft.Offset(0, 3)),
-        ft.BoxShadow(blur_radius=14, spread_radius=2, color="#8FA6D0", offset=ft.Offset(0, 4)),
-        escala_hover=1.02,
     )
 
     contenido_dialogo = ft.Container(
-        width=820, height=680, padding=ft.Padding.symmetric(horizontal=20, vertical=14),
+        width=820, height=670, padding=ft.Padding.symmetric(horizontal=20, vertical=14),
         content=ft.Column(
             [
                 encabezado,
@@ -734,8 +729,8 @@ def _construir_dialogo_editar_usuario(page: ft.Page, al_guardar_callback=None):
         nuevo_puesto = dropdown_puesto.value
 
         if emp["puesto"] != nuevo_puesto:
-            antiguo_nivel_titulo = MAPA_NIVELES.get(emp["puesto"], "Almacenistas")
-            nuevo_nivel_titulo = MAPA_NIVELES.get(nuevo_puesto, "Almacenistas")
+            antiguo_nivel_titulo = MAPA_ROL_NIVEL.get(emp["puesto"], "Almacenistas")
+            nuevo_nivel_titulo = MAPA_ROL_NIVEL.get(nuevo_puesto, "Almacenistas")
 
             for nivel in NIVELES_EJEMPLO:
                 if nivel["titulo"] == antiguo_nivel_titulo and emp in nivel["empleados"]:
@@ -807,7 +802,21 @@ def _construir_dialogo_editar_usuario(page: ft.Page, al_guardar_callback=None):
         campo_nombre.tf.value = partes_nombre[0] if len(partes_nombre) > 0 else ""
         campo_apellidos.tf.value = partes_nombre[1] if len(partes_nombre) > 1 else ""
         dropdown_puesto.value = empleado_a_editar.get("puesto", PUESTOS_DISPONIBLES[0])
-        campo_telefono.value = empleado_a_editar.get("telefono", "")
+
+        telefono_guardado = str(empleado_a_editar.get("telefono", "") or "")
+        if telefono_guardado.startswith("(") and ")" in telefono_guardado:
+            codigo = telefono_guardado[1:telefono_guardado.index(")")].strip("'").strip("(")
+            numero = telefono_guardado[telefono_guardado.index(")")+1:]
+            campo_telefono.value = ''.join(filter(str.isdigit, numero))[-10:]
+        else:
+            codigo = "+52"
+            campo_telefono.value = ''.join(filter(str.isdigit, telefono_guardado))[-10:]
+        
+        dropdown_codigo_pais.options = [ft.dropdown.Option(key=c, text=e) for e, c in CODIGOS_PAIS]
+        dropdown_codigo_pais.value = codigo
+        dropdown_codigo_pais.update()
+        campo_telefono.update()
+        
         campo_correo.tf.value = empleado_a_editar.get("correo", "")
         campo_contrasena.tf.value = ""
 
@@ -815,7 +824,6 @@ def _construir_dialogo_editar_usuario(page: ft.Page, al_guardar_callback=None):
         err_apellidos.visible = False
         err_telefono.visible = False
         err_correo.visible = False
-        err_contrasena.visible = False
 
         ruta_imagen_actual = empleado_a_editar.get("imagen")
         imagen_empleado_seleccionada["path"] = ruta_imagen_actual
@@ -828,6 +836,9 @@ def _construir_dialogo_editar_usuario(page: ft.Page, al_guardar_callback=None):
 
         dialogo.open = True
         page.update()
+
+        page.update()
+        dropdown_codigo_pais.update()
 
     return dialogo, abrir_dialogo
 
@@ -854,16 +865,16 @@ def _construir_dialogo_eliminar_usuario(page: ft.Page, al_eliminar_callback=None
     def confirmar_eliminacion(e):
         emp = empleado_a_borrar_ref["empleado"]
         if emp:
-            titulo_nivel = MAPA_NIVELES.get(emp["puesto"], "Almacenistas")
-            for nivel in NIVELES_EJEMPLO:
-                if nivel["titulo"] == titulo_nivel and emp in nivel["empleados"]:
-                    nivel["empleados"].remove(emp)
-                    break
+            UsuarioDAO.eliminar(emp["usuario_id"])
+            NIVELES_EJEMPLO[:] = _cargar_niveles()
 
             if al_eliminar_callback:
                 al_eliminar_callback()
 
-            snack = ft.SnackBar(content=ft.Text(f"Empleado '{emp['nombre']}' eliminado", color=ft.Colors.WHITE), bgcolor="#E53935")
+            snack = ft.SnackBar(
+                content=ft.Text(f"Empleado '{emp['nombre']}' eliminado", color=ft.Colors.WHITE),
+                bgcolor="#E53935"
+            )
             page.overlay.append(snack)
             snack.open = True
 
