@@ -1,7 +1,7 @@
 import flet as ft
 
-from theme import colores
-from state import ESTADO_UI
+from frontend.theme import colores
+from frontend.state import ESTADO_UI
 
 def crear_tarjeta_empleado(empleado, on_editar=None, on_eliminar=None):
     c = colores()

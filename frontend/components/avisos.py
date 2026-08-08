@@ -1,6 +1,6 @@
 import flet as ft
-from theme import colores
-from state import PRODUCTOS_GLOBALES, obtener_estado_caducidad
+from frontend.theme import colores
+from frontend.state import PRODUCTOS_GLOBALES, obtener_estado_caducidad
 
 # --- Tarjeta individual de un aviso (stock bajo / por caducar / caducado) ---
 def crear_item_aviso_alerta(nombre, tipo_alerta, detalle, on_click_callback=None):

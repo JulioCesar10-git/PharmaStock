@@ -1,4 +1,4 @@
-from state import ESTADO_UI
+from frontend.state import ESTADO_UI
 
 # --- Paleta clara ---
 PALETA_CLARA = {

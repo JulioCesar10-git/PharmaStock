@@ -4,9 +4,9 @@ from tkinter import filedialog
 
 import flet as ft
 
-from theme import colores
-from state import ESTADO_UI
-from components.empleado_card import crear_tarjeta_empleado
+from frontend.theme import colores
+from frontend.state import ESTADO_UI
+from frontend.components.empleado_card import crear_tarjeta_empleado
 
 # --- Aplica el mismo efecto hover (zoom + sombra más marcada) que el
 #     botón "Agregar tarea" de recordatorios.py, a un Container-botón ---
