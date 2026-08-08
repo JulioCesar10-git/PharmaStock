@@ -1,4 +1,4 @@
-from state import PRODUCTOS_GLOBALES, obtener_estado_caducidad
+from frontend.state import PRODUCTOS_GLOBALES, obtener_estado_caducidad
 
 def _tiene_stock_bajo(producto):
     alertas = producto.get("alertas", [])

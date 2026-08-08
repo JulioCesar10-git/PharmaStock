@@ -3,7 +3,7 @@ from datetime import datetime
 
 import flet as ft
 
-from theme import colores
+from frontend.theme import colores
 
 MESES_ES = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",

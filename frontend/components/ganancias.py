@@ -2,8 +2,8 @@ from datetime import datetime
 
 import flet as ft
 
-from theme import colores
-from views.reportes import obtener_ganancias_por_mes, obtener_anios_disponibles, MESES_ABREV
+from frontend.theme import colores
+from frontend.views.reportes import obtener_ganancias_por_mes, obtener_anios_disponibles, MESES_ABREV
 
 ANCHO_BARRAS = 230  # ancho (px) disponible para la barra más larga
 NIVELES_EJE = 7       # cantidad de marcas de referencia

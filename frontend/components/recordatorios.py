@@ -1,6 +1,6 @@
 import flet as ft
 
-from theme import colores
+from frontend.theme import colores
 
 # --- Aplica el mismo efecto hover del botón "Agregar tarea"
 #     (zoom + sombra más marcada, sin marco) a un Container-botón ---

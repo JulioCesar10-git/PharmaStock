@@ -6,10 +6,10 @@ from tkinter import filedialog
 
 import flet as ft
 
-from theme import colores
-from state import ESTADO_FARMACIA, ESTADO_UI, PRODUCTOS_GLOBALES, obtener_estado_caducidad
-from components.producto_card import crear_tarjeta_producto
-from alertas_inventario import contar_avisos_inventario
+from frontend.theme import colores
+from frontend.state import ESTADO_FARMACIA, ESTADO_UI, PRODUCTOS_GLOBALES, obtener_estado_caducidad
+from frontend.components.producto_card import crear_tarjeta_producto
+from frontend.alertas_inventario import contar_avisos_inventario
 
 MAX_PAGINAS_VISIBLES = 5
 

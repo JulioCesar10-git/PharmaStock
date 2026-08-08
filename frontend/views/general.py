@@ -1,8 +1,8 @@
 import flet as ft
 
-from components.calendario import crear_tarjeta_calendario
-from components.ganancias import crear_tarjeta_ganancias
-from components.avisos import crear_tarjeta_avisos
+from frontend.components.calendario import crear_tarjeta_calendario
+from frontend.components.ganancias import crear_tarjeta_ganancias
+from frontend.components.avisos import crear_tarjeta_avisos
 
 
 def vista_general(page: ft.Page, fecha_activa: dict, modulo_recordatorios: dict, cambiar_pestana_callback=None):

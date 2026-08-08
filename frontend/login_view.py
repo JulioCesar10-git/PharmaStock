@@ -2,8 +2,10 @@ import math
 import socket
 import flet as ft
 
-from theme import colores
+from frontend.theme import colores
 
+# IMPORTAR BACKEND
+from backend.dao.usuario_dao import UsuarioDAO
 
 def vista_login(page: ft.Page, on_login_exitoso=None):
     """
@@ -313,36 +315,16 @@ def vista_login(page: ft.Page, on_login_exitoso=None):
 
         if es_valido:
             # --- Compara contra el correo y contraseña guardados en Ajustes ---
-            try:
-                correo_guardado = page.client_storage.get("perfil_correo")
-            except Exception:
-                correo_guardado = None
-            correo_guardado = correo_guardado or "cervantes@gmail.com"
-
-            try:
-                contrasena_guardada = page.client_storage.get("perfil_contrasena")
-            except Exception:
-                contrasena_guardada = None
-            contrasena_guardada = contrasena_guardada or "12345678"
-
-            if val_user == correo_guardado and val_pass == contrasena_guardada:
-                if on_login_exitoso:
-                    on_login_exitoso(val_user, val_pass)
-            else:
-                if val_user != correo_guardado:
-                    error_usuario.value = "El correo o el número telefónico no es correcto"
-                    error_usuario.visible = True
-                    input_usuario.border_color = COLOR_ERROR
-
-                if val_pass != contrasena_guardada:
-                    error_password.value = "La contraseña no es correcta"
-                    error_password.visible = True
-                    input_password.border_color = COLOR_ERROR
-
+            usuario = UsuarioDAO.login(val_user, val_pass)
+            if usuario:
+                error_usuario.visible = False
                 error_usuario.update()
-                input_usuario.update()
+                if on_login_exitoso:
+                    on_login_exitoso(usuario)
+            else:
+                error_password.visible = True
                 error_password.update()
-                input_password.update()
+
 
     # --- TARJETAS DEL LOGIN ---
     tarjeta_izquierda = ft.Container(

@@ -5,8 +5,8 @@ import calendar
 import copy
 import flet as ft
 
-from theme import colores
-from state import PRODUCTOS_GLOBALES, PROVEEDORES_GLOBALES, ESTADO_UI
+from frontend.theme import colores
+from frontend.state import PRODUCTOS_GLOBALES, PROVEEDORES_GLOBALES, ESTADO_UI
 
 REPORTES_POR_PAGINA = 7
 MAX_PAGINAS_VISIBLES = 5

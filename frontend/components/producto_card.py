@@ -2,7 +2,7 @@ from datetime import datetime
 
 import flet as ft
 
-from theme import colores
+from frontend.theme import colores
 
 def crear_tarjeta_producto(producto, on_editar=None, on_eliminar=None):
     c = colores()

@@ -6,8 +6,8 @@ import copy
 import flet as ft
 import requests
 
-from theme import colores
-from state import PROVEEDORES_GLOBALES, PRODUCTOS_GLOBALES, ESTADO_UI
+from frontend.theme import colores
+from frontend.state import PROVEEDORES_GLOBALES, PRODUCTOS_GLOBALES, ESTADO_UI
 
 PROVEEDORES_POR_PAGINA = 7
 MAX_PAGINAS_VISIBLES = 5

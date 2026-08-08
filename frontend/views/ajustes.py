@@ -4,8 +4,8 @@ from tkinter import filedialog
 
 import flet as ft
 
-from theme import colores
-from state import ESTADO_UI
+from frontend.theme import colores
+from frontend.state import ESTADO_UI
 
 CARGOS_DISPONIBLES = ["Administrador", "Gerente", "Farmacéutico", "Cajero", "Almacenista"]
 
