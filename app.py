@@ -43,8 +43,8 @@ def registrar_usuario():
         usuario_correoElec  =input("Correo electronico: ")
         usuario_password = input("Contraseña: ")
         print("=== Roles disponibles ===")
-        print("1.- Tendero")
-        print("2.- Bodeguero")
+        print("1.- Cajero")
+        print("2.- Almacenista")
         opcion_cargo = input("Elije el cargo")
 
         match opcion_cargo:
