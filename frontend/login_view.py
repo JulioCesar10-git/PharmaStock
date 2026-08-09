@@ -1,9 +1,18 @@
 import math
-import re
+import socket
 import flet as ft
 
+from frontend.theme import colores
 
-def main(page: ft.Page):
+# IMPORTAR BACKEND
+from backend.dao.usuario_dao import UsuarioDAO
+
+def vista_login(page: ft.Page, on_login_exitoso=None):
+    """
+    Construye y devuelve el contenido de la pantalla de login.
+    on_login_exitoso: función opcional que se llama cuando el login es válido
+                       (por ejemplo, para cambiar a la ventana principal).
+    """
     # Configuración básica
     page.title = "Pharmastock - Login"
     page.bgcolor = "#EAF2FF"
@@ -18,30 +27,32 @@ def main(page: ft.Page):
     COLOR_BORDER = "#84ACFF"
     COLOR_ERROR = "#D43838"
 
-    # Paleta de colores - Modal
-    COLOR_TITULO_MODAL = "#0B2B63"
-    COLOR_SUBTITULO_MODAL = "#5A73A3"
-    COLOR_INPUT_BG_MODAL = "#EBF3FE"
-    COLOR_INPUT_BORDER_MODAL = "#99C1F1"
-    COLOR_BOTON_MODAL = "#7F96C5"
+    # Paleta de colores - Modal (mismos colores/tamaños que "Añadir empleado")
+    c = colores()
+    COLOR_TITULO_MODAL = c["input_bg"]
+    COLOR_SUBTITULO_MODAL = c["input_bg"]
+    COLOR_LABEL_MODAL = "#004C95"
+    COLOR_INPUT_BG_MODAL = "#E9F5FF"
+    COLOR_INPUT_BORDER_MODAL = c["borde_campo"]
+    COLOR_BOTON_MODAL = c["boton_secundario"]
 
     # --- COMPONENTES DE LA VENTANA EMERGENTE ---
     input_correo_recuperar = ft.TextField(
         hint_text="ejemplo@gmail.com",
-        hint_style=ft.TextStyle(color=COLOR_SUBTITULO_MODAL),
-        text_style=ft.TextStyle(color=COLOR_TITULO_MODAL),
+        hint_style=ft.TextStyle(color=ft.Colors.with_opacity(0.45, COLOR_INPUT_BORDER_MODAL), size=18),
+        text_style=ft.TextStyle(color=COLOR_INPUT_BORDER_MODAL, size=18),
         bgcolor=COLOR_INPUT_BG_MODAL,
         border_color=COLOR_INPUT_BORDER_MODAL,
-        border_radius=20,
-        content_padding=ft.Padding.symmetric(horizontal=15, vertical=10),
-        height=50,
+        border_radius=30,
+        content_padding=ft.Padding.only(left=15),
+        height=45,
         width=float("inf"),
     )
 
-    error_recuperar = ft.Text("", color=COLOR_ERROR, size=12, visible=False)
+    error_recuperar = ft.Text("", color=ft.Colors.RED, size=13, visible=False)
 
     capa_modal = ft.Container(
-        visible=False,  
+        visible=False,
         alignment=ft.Alignment.CENTER,
         bgcolor=ft.Colors.BLACK54,  
         expand=True,
@@ -59,22 +70,47 @@ def main(page: ft.Page):
         error_recuperar.visible = False
         page.update()
 
+    def hay_conexion_internet(timeout=3):
+        """Intenta abrir un socket a un servidor DNS público para confirmar
+        si hay conexión a internet. No depende de que un sitio web específico
+        esté disponible, solo de que haya salida a la red."""
+        try:
+            socket.create_connection(("8.8.8.8", 53), timeout=timeout)
+            return True
+        except OSError:
+            return False
+
     def enviar_correo_recuperacion(e):
-        correo = (
-            input_correo_recuperar.value.strip()
-            if input_correo_recuperar.value
-            else ""
-        )
+        correo = input_correo_recuperar.value or ""
 
         if not correo:
             error_recuperar.value = "Por favor ingresa tu correo"
             error_recuperar.visible = True
             input_correo_recuperar.border_color = COLOR_ERROR
             page.update()
-        elif not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", correo):
-            error_recuperar.value = "Formato de correo no válido"
+        elif " " in correo:
+            error_recuperar.value = "No puedes dejar espacios al ingresar un correo"
             error_recuperar.visible = True
             input_correo_recuperar.border_color = COLOR_ERROR
+            page.update()
+        elif "@" not in correo:
+            error_recuperar.value = "Es necesario colocar un @ en el correo"
+            error_recuperar.visible = True
+            input_correo_recuperar.border_color = COLOR_ERROR
+            page.update()
+        elif not hay_conexion_internet():
+            error_recuperar.value = ""
+            error_recuperar.visible = False
+            input_correo_recuperar.border_color = COLOR_INPUT_BORDER_MODAL
+            page.update()
+
+            # Notificación de error de conexión
+            snack_sin_internet = ft.SnackBar(
+                content=ft.Text("No hay conexión a internet, inténtelo más tarde"),
+                bgcolor=ft.Colors.RED_600,
+                open=True,
+            )
+            page.overlay.append(snack_sin_internet)
             page.update()
         else:
             capa_modal.visible = False
@@ -97,7 +133,7 @@ def main(page: ft.Page):
     # Contenido de la tarjeta del modal
     tarjeta_modal_contenido = ft.Container(
         width=550,
-        bgcolor=ft.Colors.WHITE,
+        bgcolor=c["bg_card_white"],
         border_radius=24,
         padding=ft.Padding.all(25),
         content=ft.Column(
@@ -114,7 +150,7 @@ def main(page: ft.Page):
                             icon=ft.Icons.ARROW_BACK,
                             icon_color=ft.Colors.WHITE,
                             icon_size=20,
-                            bgcolor="#819BBF",
+                            bgcolor=COLOR_BOTON_MODAL,
                             on_click=cerrar_modal,
                         ),
                         ft.Container(
@@ -145,7 +181,7 @@ def main(page: ft.Page):
                             "Correo electrónico",
                             size=18,
                             weight=ft.FontWeight.BOLD,
-                            color=COLOR_TITULO_MODAL,
+                            color=COLOR_LABEL_MODAL,
                         ),
                         input_correo_recuperar,
                         error_recuperar,
@@ -155,7 +191,7 @@ def main(page: ft.Page):
                 ft.Text(
                     "Se enviará un correo electrónico a tu bandeja\nde entrada para cambiar la contraseña",
                     size=16,
-                    color=COLOR_SUBTITULO_MODAL,
+                    color=c["texto_secundario"],
                     text_align=ft.TextAlign.CENTER,
                 ),
                 ft.Container(
@@ -163,7 +199,7 @@ def main(page: ft.Page):
                     content=ft.Text(
                         "- - " * 22,
                         color=COLOR_INPUT_BORDER_MODAL,
-                        size=16,
+                        size=12,
                         text_align=ft.TextAlign.CENTER,
                         max_lines=1,
                     ),
@@ -177,7 +213,7 @@ def main(page: ft.Page):
                     ),
                     style=ft.ButtonStyle(
                         bgcolor=COLOR_BOTON_MODAL,
-                        shape=ft.RoundedRectangleBorder(radius=20),
+                        shape=ft.RoundedRectangleBorder(radius=30),
                         elevation=0,
                     ),
                     width=float("inf"),
@@ -245,7 +281,17 @@ def main(page: ft.Page):
         es_valido = True
 
         if not val_user:
-            error_usuario.value = "El usuario o correo es obligatorio"
+            error_usuario.value = "El correo o número telefónico es obligatorio"
+            error_usuario.visible = True
+            input_usuario.border_color = COLOR_ERROR
+            es_valido = False
+        elif " " in val_user:
+            error_usuario.value = "No puedes dejar espacios al ingresar un correo"
+            error_usuario.visible = True
+            input_usuario.border_color = COLOR_ERROR
+            es_valido = False
+        elif "@" not in val_user:
+            error_usuario.value = "Es necesario colocar un @ en el correo"
             error_usuario.visible = True
             input_usuario.border_color = COLOR_ERROR
             es_valido = False
@@ -268,7 +314,17 @@ def main(page: ft.Page):
         input_password.update()
 
         if es_valido:
-            print("Iniciando sesión...")
+            # --- Compara contra el correo y contraseña guardados en Ajustes ---
+            usuario = UsuarioDAO.login(val_user, val_pass)
+            if usuario:
+                error_usuario.visible = False
+                error_usuario.update()
+                if on_login_exitoso:
+                    on_login_exitoso(usuario)
+            else:
+                error_password.visible = True
+                error_password.update()
+
 
     # --- TARJETAS DEL LOGIN ---
     tarjeta_izquierda = ft.Container(
@@ -437,7 +493,12 @@ def main(page: ft.Page):
         expand=True,
     )
 
-    page.add(pantalla_completa)
+    return pantalla_completa
 
 
-ft.app(target=main, assets_dir="assets")
+if __name__ == "__main__":
+    # Esto solo se ejecuta si corres login_view.py directamente (para probarlo aislado)
+    def _prueba(page: ft.Page):
+        page.add(vista_login(page))
+
+    ft.app(target=_prueba, assets_dir="assets") 

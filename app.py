@@ -16,7 +16,11 @@ from backend.models.venta import Venta
 
 from backend.dao.usuario_dao import UsuarioDAO
 
+from backend.dao.tarea_dao import TareaDAO
+from backend.models.tarea import Tarea
+
 # API´S
+from num2words import num2words
 from backend.services.email_sender import enviar_ticket_por_correo
 
 from backend.dao.cpm_dao import CpmDAO
@@ -27,6 +31,7 @@ from backend.services.reporte_pdf import generar_reporte_cpm_pdf
 # FUNCIONES
 from decimal import Decimal
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 # FRONTEND
 import flet as ft
@@ -38,8 +43,8 @@ def registrar_usuario():
         usuario_correoElec  =input("Correo electronico: ")
         usuario_password = input("Contraseña: ")
         print("=== Roles disponibles ===")
-        print("1.- Tendero")
-        print("2.- Bodeguero")
+        print("1.- Cajero")
+        print("2.- Almacenista")
         opcion_cargo = input("Elije el cargo")
 
         match opcion_cargo:
@@ -470,6 +475,52 @@ def eliminar_categoria():
         print("Error al eliminar categoría")
         print(e)
 
+# FUNCIONES DE TAREA
+def ver_tareas():
+    try:
+        tareas = TareaDAO.obtener_todos()
+
+        if len(tareas) == 0:
+            print("No hay tareas registradas.")
+        else:
+            print("============= Tareas =============")
+            for t in tareas:
+                print(f"ID: {t.tarea_id}, Asunto: {t.tarea_asunto}")
+
+    except Exception as e:
+        print("Error al obtener las tareas")
+        print(e)
+
+def crear_tarea():
+    try:
+
+        tarea_asunto = input("Ingresa el asunto de la tarea: ")
+    
+        nueva_tarea = Tarea(
+            tarea_asunto
+        )
+
+        TareaDAO.crear(nueva_tarea)
+        print("Tarea creada con exito")
+
+    except Exception as e:
+        print("Error al crear el una tarea")
+        print(e)
+
+def eliminar_tarea():
+    try:
+
+        id_tarea = int(input("Ingresa el ID de la tarea a eliminar: "))
+
+        if TareaDAO.eliminar(id_tarea):
+            print("Tarea eliminada con éxito.")
+        else:
+            print("No se encontró la tarea o no se pudo eliminar")
+
+    except Exception as e:
+            print("Error al eliminar tarea")
+            print(e)
+
 # FUNCIONES DE REPORTES MENSUALES(CPM)
 def generar_reporte():
     try:
@@ -556,9 +607,28 @@ def registrar_venta(usuario_actual):
         print("Venta cancelada, no se agregaron artículos")
         return
 
-    subtotal = sum(item["subtotal"] for item in carrito)
-    iva = subtotal * Decimal("0.16")
-    total = subtotal + iva
+    total = sum(item["subtotal"] for item in carrito)
+    iva = total - (total / Decimal("1.16"))
+    subtotal = total - iva
+
+    pago_cliente = None
+    cambio = Decimal("0.00")
+
+    while True:
+        try:
+            entrada_pago = input(f"Total a pagar: ${total:.2f}\nDinero recibido: $")
+            pago_cliente = Decimal(entrada_pago)
+        except (InvalidOperation, ValueError):
+            print("Cantidad inválida, ingresa solo números (ej. 200 o 200.50)")
+            continue
+
+        if pago_cliente < total:
+            faltante = total - pago_cliente
+            print(f"El dinero no alcanza. Faltan ${faltante:.2f}")
+            continue 
+
+        cambio = pago_cliente - total
+        break
 
     venta = Venta(
         venta_folio=folio,
@@ -566,7 +636,9 @@ def registrar_venta(usuario_actual):
         venta_usuario_id=usuario_actual.usuario_id,
         venta_subtotal=subtotal,
         venta_iva=iva,
-        venta_total=total
+        venta_total=total,
+        venta_pago=pago_cliente,
+        venta_cambio=cambio
     )
 
     VentaDAO.crear_venta(venta, carrito)
@@ -579,20 +651,38 @@ def registrar_venta(usuario_actual):
         correo_cliente = input("Correo del cliente: ")
         enviar_ticket_por_correo(correo_cliente, ticket, venta.venta_folio)
 
+
 def generar_ticket(venta, carrito):
-    ticket = "===== PHARMASTOCK =====\n"
-    ticket += f"Folio: {venta.venta_folio}\n"
-    ticket += "------------------------\n"
+    from datetime import datetime
+
+    fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    total_articulos = sum(item["cantidad"] for item in carrito)
+
+    total_letras = num2words(venta.venta_total, lang="es").upper() + " PESOS 00/100 MN"
+
+    ticket = f"TICKET    FOLIO: {venta.venta_folio}\n"
+    ticket += "=" * 45 + "\n"
+    ticket += f"Fecha y hora: {fecha_hora}\n"
+    ticket += "-" * 45 + "\n"
 
     for item in carrito:
-        ticket += f"{item['nombre']} x{item['cantidad']} = ${item['subtotal']}\n"
+        nombre_cantidad = f"  {item['cantidad']} {item['nombre']}"
+        precio = f"{item['subtotal']:.2f}"
+        espacios = 45 - len(nombre_cantidad) - len(precio)
+        ticket += f"{nombre_cantidad}{' ' * max(1, espacios)}{precio}\n"
 
-    ticket += "------------------------\n"
-    ticket += f"Subtotal: ${venta.venta_subtotal}\n"
-    ticket += f"IVA: ${venta.venta_iva}\n"
-    ticket += f"Total: ${venta.venta_total}\n"
-    ticket += "========================\n"
-    ticket += "¡Gracias por su compra!"
+    ticket += "-" * 45 + "\n"
+    ticket += f"# Artículos: {total_articulos}\n\n"
+    ticket += f"  Total    : ${venta.venta_total:.2f}\n"
+    ticket += f"  Subtotal : ${venta.venta_subtotal:.2f}\n"
+    ticket += f"  IVA      : ${venta.venta_iva:.2f}\n"
+
+    if getattr(venta, "venta_pago", None) is not None:
+        ticket += f"  Pago con : ${venta.venta_pago:.2f}\n"
+        ticket += f"  Cambio   : ${venta.venta_cambio:.2f}\n"
+
+    ticket += "=" * 45 + "\n"
+    ticket += f"{total_letras}\n"
 
     return ticket
 
@@ -704,6 +794,26 @@ def menu_categorias():
         case 4:
             eliminar_categoria()
 
+# TAREAS
+def menu_tareas():
+    print(" ==== PHARMASTOCK ==== ") 
+    print("Menu de opciones:")   
+    print("1.- Crear tarea")
+    print("2.- Eliminar tarea")
+    print("3.- Ver tareas")
+
+    opc = int(input("Selecciona una opcion: "))
+
+    match opc:
+        
+        case 1:
+            crear_tarea()   
+        case 2: 
+            eliminar_tarea()  
+        case 3:
+            ver_tareas()
+        
+
 # MENU ADMINISTRADOR
 def menu_admin(usuario_actual):
     print(" ==== PHARMASTOCK ==== ") 
@@ -712,9 +822,11 @@ def menu_admin(usuario_actual):
     print("2.- Medicamentos")
     print("3.- Productos")
     print("4.- Categorias")
-    print("5.- Generar reporte")
-    print("6.- Registrar venta")
-    print("7.- Ver corte de caja")
+    print("5.- Tareas")
+    print("6.- Generar reporte")
+    print("7.- Registrar venta")
+    print("8.- Ver corte de caja")
+
     
     opc = int(input("Selecciona una opcion: "))
     
@@ -729,10 +841,12 @@ def menu_admin(usuario_actual):
         case 4:
             menu_categorias()
         case 5:
-            generar_reporte()
+            menu_tareas()
         case 6:
-            registrar_venta(usuario_actual)
+            generar_reporte()
         case 7:
+            registrar_venta(usuario_actual)
+        case 8:
             ver_corte_de_caja(usuario_actual)
 
 def main():
