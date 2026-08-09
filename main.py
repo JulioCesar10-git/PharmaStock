@@ -37,6 +37,7 @@ def main_window(page: ft.Page):
     }
     modulo_recordatorios = crear_modulo_recordatorios(page, fecha_activa)
     estado_navegacion = {"seccion_actual": "General"}
+    usuario_sesion = {"usuario": None}
 
     # --- Diálogo: centro de notificaciones ---
     def abrir_modal_notificaciones(e):
@@ -324,7 +325,7 @@ def main_window(page: ft.Page):
                     ft.Text(key_clickeado, size=24, weight=ft.FontWeight.BOLD, color=c["input_bg"])
                 ]
             elif key_clickeado == "Ajustes":
-                area_dinamica.content = vista_ajustes(page, construir_interfaz)
+                area_dinamica.content = vista_ajustes(page, construir_interfaz, usuario_sesion["usuario"])
                 titulo_seccion_text.controls = [
                     ft.Text(key_clickeado, size=24, weight=ft.FontWeight.BOLD, color=c["input_bg"])
                 ]
@@ -474,7 +475,7 @@ def main_window(page: ft.Page):
         elif estado_navegacion["seccion_actual"] == "Proveedores":
             contenido_inicial = vista_proveedores(page)
         elif estado_navegacion["seccion_actual"] == "Ajustes":
-            contenido_inicial = vista_ajustes(page, construir_interfaz)
+            contenido_inicial = vista_ajustes(page, construir_interfaz, usuario_sesion["usuario"])
         else:
             contenido_inicial = vista_general(page, fecha_activa, modulo_recordatorios, cambiar_seccion)
 
@@ -495,8 +496,7 @@ def main_window(page: ft.Page):
 
     def on_login_exitoso(usuario):
         print(f"✅ Bienvenido {usuario.usuario_usuario}")
-
-        # Aquí después navegamos a la ventana principal
+        usuario_sesion["usuario"] = usuario  # <-- agrega esto
         estado_navegacion["seccion_actual"] = "General"
         page.controls.clear()
         construir_interfaz()

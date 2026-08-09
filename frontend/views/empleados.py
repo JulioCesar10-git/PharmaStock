@@ -728,24 +728,29 @@ def _construir_dialogo_editar_usuario(page: ft.Page, al_guardar_callback=None):
         emp["nombre"] = f"{nombre_val} {apellidos_val}".strip()
         nuevo_puesto = dropdown_puesto.value
 
-        if emp["puesto"] != nuevo_puesto:
-            antiguo_nivel_titulo = MAPA_ROL_NIVEL.get(emp["puesto"], "Almacenistas")
-            nuevo_nivel_titulo = MAPA_ROL_NIVEL.get(nuevo_puesto, "Almacenistas")
+        MAPA_PUESTO_ROL = {
+            "Administrador": "admin",
+            "Cajero": "tendero",
+            "Almacenista": "bodeguero",
+        }
 
-            for nivel in NIVELES_EJEMPLO:
-                if nivel["titulo"] == antiguo_nivel_titulo and emp in nivel["empleados"]:
-                    nivel["empleados"].remove(emp)
-                    break
+        apellidos_partes = apellidos_val.split(" ", 1)
+        apellido_pat = apellidos_partes[0] if len(apellidos_partes) > 0 else ""
+        apellido_mat = apellidos_partes[1] if len(apellidos_partes) > 1 else ""
 
-            emp["puesto"] = nuevo_puesto
-            for nivel in NIVELES_EJEMPLO:
-                if nivel["titulo"] == nuevo_nivel_titulo:
-                    nivel["empleados"].append(emp)
-                    break
-
-        emp["telefono"] = digitos_telefono
-        emp["correo"] = correo_val
-        emp["imagen"] = imagen_empleado_seleccionada["path"]
+        usuario_actualizado = Usuario(
+            usuario_id=emp["usuario_id"],
+            usuario_usuario=nombre_val,
+            usuario_correoElec=correo_val,
+            usuario_password="",
+            usuario_cargo=MAPA_PUESTO_ROL.get(nuevo_puesto, "tendero"),
+            usuario_apellidoPat=apellido_pat,
+            usuario_apellidoMat=apellido_mat,
+            usuario_telefono=f"({dropdown_codigo_pais.value}){digitos_telefono}",
+            usuario_imagen=imagen_empleado_seleccionada["path"]
+        )
+        UsuarioDAO.actualizar(usuario_actualizado)
+        NIVELES_EJEMPLO[:] = _cargar_niveles()
 
         if al_guardar_callback:
             al_guardar_callback()

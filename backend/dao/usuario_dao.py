@@ -9,7 +9,8 @@ class UsuarioDAO:
         try:
             sql = """
                 SELECT usuario_id, usuario_usuario, usuario_correoElec, 
-                    usuario_password, usuario_cargo
+                    usuario_password, usuario_cargo, usuario_apellidoPat,
+                    usuario_apellidoMat, usuario_telefono, usuario_imagen
                 FROM usuarios WHERE usuario_correoElec = %s
             """
             conn = Conexion.obtener_conexion()
@@ -28,7 +29,10 @@ class UsuarioDAO:
                         usuario_correoElec=fila[2],
                         usuario_password=fila[3],
                         usuario_cargo=fila[4],
-                        usuario_telefono=None
+                        usuario_apellidoPat=fila[5],
+                        usuario_apellidoMat=fila[6],
+                        usuario_telefono=fila[7],
+                        usuario_imagen=fila[8]
                     )
             return None
 
@@ -139,6 +143,7 @@ class UsuarioDAO:
                 usuario.usuario_imagen,
                 usuario.usuario_id
             ))
+            print(f"✅ Actualizando usuario_id={usuario.usuario_id}, nombre={usuario.usuario_usuario}")
             conn.commit()
             cursor.close()
             return True
@@ -146,3 +151,36 @@ class UsuarioDAO:
             print("Error al actualizar usuario")
             print(e)
             return False
+
+    @staticmethod
+    def obtener_por_id(usuario_id):
+        try:
+            sql = """
+                SELECT usuario_id, usuario_usuario, usuario_correoElec,
+                    usuario_cargo, usuario_apellidoPat, usuario_apellidoMat,
+                    usuario_telefono, usuario_imagen
+                FROM usuarios WHERE usuario_id = %s
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cursor = conn.cursor()
+            cursor.execute(sql, (usuario_id,))
+            f = cursor.fetchone()
+            cursor.close()
+            if f:
+                return Usuario(
+                    usuario_id=f[0],
+                    usuario_usuario=f[1],
+                    usuario_correoElec=f[2],
+                    usuario_password="",
+                    usuario_cargo=f[3],
+                    usuario_apellidoPat=f[4],
+                    usuario_apellidoMat=f[5],
+                    usuario_telefono=f[6],
+                    usuario_imagen=f[7]
+                )
+            return None
+        except Exception as e:
+            print("Error al obtener usuario por ID")
+            print(e)
+            return None

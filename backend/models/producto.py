@@ -1,6 +1,6 @@
 class Producto:
 
-    def __init__(self, prod_codBarras, prod_nombre, prod_marca, prod_precio, prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, prod_id = None, cat_id = None):
+    def __init__(self, prod_codBarras, prod_nombre, prod_marca, prod_precio, prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, prod_id = None, cat_id = None, prod_imagen = None):
         
         self.prod_id = prod_id
         self.cat_id = cat_id
@@ -13,6 +13,7 @@ class Producto:
         self.prod_fechaCad = prod_fechaCad
         self.prod_fraccion = prod_fraccion
         self.prov_id = prov_id
+        self.prod_imagen = prod_imagen
 
     def __str__(self):
 

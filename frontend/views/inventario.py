@@ -2,6 +2,7 @@ import asyncio
 import math
 import random
 import tkinter as tk
+from datetime import date
 from tkinter import filedialog
 
 import flet as ft
@@ -10,6 +11,178 @@ from frontend.theme import colores
 from frontend.state import ESTADO_FARMACIA, ESTADO_UI, PRODUCTOS_GLOBALES, obtener_estado_caducidad
 from frontend.components.producto_card import crear_tarjeta_producto
 from frontend.alertas_inventario import contar_avisos_inventario
+from backend.dao.medicamento_dao import MedicamentoDAO
+from backend.dao.producto_dao import ProductoDAO
+from backend.dao.proveedor_dao import ProveedorDAO
+from backend.models.medicamento import Medicamento
+from backend.models.producto import Producto
+
+# --- Conexión con la BD: constantes y helpers de traducción dict <-> DAO ---
+CAT_ID_MEDICAMENTOS = 1
+CAT_ID_PRODUCTOS = 2
+VALOR_DEFECTO_TEXTO = "N/A"
+FRACCION_DEFECTO = "Fracción tercera"
+
+
+def _fecha_mmaaaa_a_date(valor_mmaaaa):
+    if not valor_mmaaaa or valor_mmaaaa == "N/A":
+        return None
+    try:
+        mes, anio = valor_mmaaaa.split("/")
+        if len(anio) != 4:
+            return None
+        return date(int(anio), int(mes), 1)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _date_a_mmaaaa(valor_date):
+    if not valor_date:
+        return "N/A"
+    return f"{valor_date.month:02d}/{valor_date.year}"
+
+
+def _precio_a_float(valor_precio):
+    return float(valor_precio) if valor_precio is not None else 0.0
+
+
+def _medicamento_a_dict(med):
+    return {
+        "id": med.med_id,
+        "tipo": "Medicamento",
+        "categoria": "Medicamento",
+        "nombre": med.med_nombreGen,
+        "precio": _precio_a_float(med.med_precio),
+        "stock": med.med_existencia,
+        "caducidad": _date_a_mmaaaa(med.med_fechaCad),
+        "alertas": [],
+        "lote": med.med_lote,
+        "codigo": med.med_codBarras,
+        "prov_id": med.prov_id,
+        "cat_id": med.cat_id,
+        "fraccion": med.med_fraccion,
+        "marca": None,
+        "imagen": med.med_imagen,
+    }
+
+
+def _producto_a_dict(prod):
+    return {
+        "id": prod.prod_id,
+        "tipo": "Producto",
+        "categoria": "Producto",
+        "nombre": prod.prod_nombre,
+        "precio": _precio_a_float(prod.prod_precio),
+        "stock": prod.prod_existencia,
+        "caducidad": _date_a_mmaaaa(prod.prod_fechaCad),
+        "alertas": [],
+        "lote": prod.prod_lote,
+        "codigo": prod.prod_codBarras,
+        "prov_id": prod.prov_id,
+        "cat_id": prod.cat_id,
+        "fraccion": prod.prod_fraccion,
+        "marca": prod.prod_marca,
+        "imagen": prod.prod_imagen,
+    }
+
+
+def _cargar_inventario_bd():
+    medicamentos = [_medicamento_a_dict(m) for m in MedicamentoDAO.obtener_todos()]
+    productos = [_producto_a_dict(p) for p in ProductoDAO.obtener_todos()]
+    return medicamentos + productos
+
+
+def _crear_producto_bd(datos):
+    fecha_cad = _fecha_mmaaaa_a_date(datos.get("caducidad"))
+
+    if datos["tipo"] == "Medicamento":
+        med = Medicamento(
+            med_codBarras=datos["codigo"],
+            med_nombreGen=datos["nombre"],
+            med_nombreComer=datos["nombre"],
+            med_lab=VALOR_DEFECTO_TEXTO,
+            med_origen=VALOR_DEFECTO_TEXTO,
+            med_concentracion=VALOR_DEFECTO_TEXTO,
+            med_formaFarma=VALOR_DEFECTO_TEXTO,
+            med_viaAdmi=VALOR_DEFECTO_TEXTO,
+            med_lote=datos["lote"],
+            med_fechaCad=fecha_cad,
+            med_fraccion=datos.get("fraccion") or FRACCION_DEFECTO,
+            med_precio=datos["precio"],
+            med_existencia=datos["stock"],
+            prov_id=datos["prov_id"],
+            cat_id=CAT_ID_MEDICAMENTOS,
+            med_imagen=datos.get("imagen"),
+        )
+        creado = MedicamentoDAO.crear(med)
+        return _medicamento_a_dict(creado) if creado else None
+
+    prod = Producto(
+        prod_codBarras=datos["codigo"],
+        prod_nombre=datos["nombre"],
+        prod_marca=datos.get("marca") or VALOR_DEFECTO_TEXTO,
+        prod_precio=datos["precio"],
+        prod_existencia=datos["stock"],
+        prod_lote=datos["lote"],
+        prod_fechaCad=fecha_cad,
+        prod_fraccion=datos.get("fraccion") or FRACCION_DEFECTO,
+        prov_id=datos["prov_id"],
+        cat_id=CAT_ID_PRODUCTOS,
+        prod_imagen=datos.get("imagen"),
+    )
+    creado = ProductoDAO.crear(prod)
+    return _producto_a_dict(creado) if creado else None
+
+
+def _actualizar_producto_bd(datos):
+    """datos: dict del producto en memoria (con 'id' real) con los valores editados."""
+    fecha_cad = _fecha_mmaaaa_a_date(datos.get("caducidad"))
+
+    if datos["tipo"] == "Medicamento":
+        med = Medicamento(
+            med_id=datos["id"],
+            med_codBarras=datos["codigo"],
+            med_nombreGen=datos["nombre"],
+            med_nombreComer=datos["nombre"],
+            med_lab=VALOR_DEFECTO_TEXTO,
+            med_origen=VALOR_DEFECTO_TEXTO,
+            med_concentracion=VALOR_DEFECTO_TEXTO,
+            med_formaFarma=VALOR_DEFECTO_TEXTO,
+            med_viaAdmi=VALOR_DEFECTO_TEXTO,
+            med_lote=datos["lote"],
+            med_fechaCad=fecha_cad,
+            med_fraccion=datos.get("fraccion") or FRACCION_DEFECTO,
+            med_precio=datos["precio"],
+            med_existencia=datos["stock"],
+            prov_id=datos["prov_id"],
+            cat_id=datos.get("cat_id") or CAT_ID_MEDICAMENTOS,
+            med_imagen=datos.get("imagen"),
+        )
+        return MedicamentoDAO.actualizar(med)
+
+    prod = Producto(
+        prod_id=datos["id"],
+        prod_codBarras=datos["codigo"],
+        prod_nombre=datos["nombre"],
+        prod_marca=datos.get("marca") or VALOR_DEFECTO_TEXTO,
+        prod_precio=datos["precio"],
+        prod_existencia=datos["stock"],
+        prod_lote=datos["lote"],
+        prod_fechaCad=fecha_cad,
+        prod_fraccion=datos.get("fraccion") or FRACCION_DEFECTO,
+        prov_id=datos["prov_id"],
+        cat_id=datos.get("cat_id") or CAT_ID_PRODUCTOS,
+        prod_imagen=datos.get("imagen"),
+    )
+    return ProductoDAO.actualizar(prod)
+
+
+def _eliminar_producto_bd(producto):
+    """producto: dict en memoria con 'id' y 'tipo'."""
+    if producto.get("tipo") == "Medicamento":
+        return MedicamentoDAO.eliminar(producto["id"])
+    return ProductoDAO.eliminar(producto["id"])
+
 
 MAX_PAGINAS_VISIBLES = 5
 
@@ -87,6 +260,10 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
 
     PRODUCTOS_POR_PAGINA = 12
     pagina_actual = [1]
+
+    # --- Reemplaza los datos de ejemplo por el inventario real de la BD ---
+    PRODUCTOS_GLOBALES[:] = _cargar_inventario_bd()
+    proveedores_disponibles = ProveedorDAO.obtener_todos()
 
     productos_filtrados = list(PRODUCTOS_GLOBALES)
 
@@ -643,6 +820,16 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
     tf_add_existencias = _crear_tf_add(value="100 pz", text_align=ft.TextAlign.CENTER)
     tf_add_existencias.on_change = lambda e: _limpiar_error(err_add_existencias)
 
+    err_add_proveedor = _crear_texto_error()
+
+    def _opciones_proveedor():
+        return [ft.dropdown.Option(key=str(p.prov_id), text=p.prov_nombre) for p in proveedores_disponibles]
+
+    dd_add_proveedor = _crear_dd_add([], None)
+    dd_add_proveedor.options = _opciones_proveedor()
+    dd_add_proveedor.hint_text = "Selecciona un proveedor"
+    dd_add_proveedor.on_change = lambda e: _limpiar_error(err_add_proveedor)
+
     # --- Diálogo "Agregar producto": lógica y campos del formulario ---
     def manejar_cambio_tipo(e):
         es_producto = dd_add_tipo.value == "Producto"
@@ -682,6 +869,7 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
     campo_caducidad = _crear_campo("Fecha de caducidad", tf_add_caducidad, expandir=True, label_color=color_label_campo, label_size=18, error_ctrl=err_add_caducidad)
     campo_lote = _crear_campo("Lote", tf_add_lote, expandir=True, label_color=ft.Colors.GREY_400, label_size=18)
     campo_codigo = _crear_campo("Código de barras", tf_add_codigo, expandir=True, label_color=color_label_campo, label_size=18, error_ctrl=err_add_codigo)
+    campo_proveedor = _crear_campo("Proveedor", dd_add_proveedor, expandir=True, label_color=color_label_campo, label_size=18, error_ctrl=err_add_proveedor)
 
     def ajustar_precio(incremento):
         try:
@@ -799,48 +987,69 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
         else:
             err_add_existencias.visible = False
 
-        if dd_add_tipo.value == "Medicamento":
-            valor_caducidad = tf_add_caducidad.value or ""
-            digitos_caducidad = ''.join(filter(str.isdigit, valor_caducidad))
+        valor_caducidad = tf_add_caducidad.value or ""
+        digitos_caducidad = ''.join(filter(str.isdigit, valor_caducidad))
 
-            if not valor_caducidad.strip():
+        if not valor_caducidad.strip():
+            if dd_add_tipo.value == "Medicamento":
                 err_add_caducidad.value = "El medicamento necesita una fecha de caducidad"
                 err_add_caducidad.visible = True
                 formulario_valido = False
-            elif len(digitos_caducidad) < 6:
-                err_add_caducidad.value = "Se requiere llenar todos los campos de la fecha de caducidad"
+            else:
+                err_add_caducidad.visible = False
+        elif len(digitos_caducidad) < 6:
+            err_add_caducidad.value = "Se requiere llenar todos los campos de la fecha de caducidad"
+            err_add_caducidad.visible = True
+            formulario_valido = False
+        else:
+            mes_caducidad = digitos_caducidad[:2]
+            anio_caducidad = digitos_caducidad[2:6]
+            mes_val = int(mes_caducidad)
+            digitos_repetidos = len(set(digitos_caducidad)) == 1
+
+            if digitos_repetidos or mes_val < 1 or mes_val > 12 or anio_caducidad == "0000":
+                err_add_caducidad.value = "Se requiere una fecha de caducidad funcional"
                 err_add_caducidad.visible = True
                 formulario_valido = False
             else:
-                mes_caducidad = digitos_caducidad[:2]
-                anio_caducidad = digitos_caducidad[2:6]
-                mes_val = int(mes_caducidad)
-                digitos_repetidos = len(set(digitos_caducidad)) == 1
+                err_add_caducidad.visible = False
 
-                if digitos_repetidos or mes_val < 1 or mes_val > 12 or anio_caducidad == "0000":
-                    err_add_caducidad.value = "Se requiere una fecha de caducidad funcional"
-                    err_add_caducidad.visible = True
-                    formulario_valido = False
-                else:
-                    err_add_caducidad.visible = False
+        if not dd_add_proveedor.value:
+            err_add_proveedor.value = "Selecciona un proveedor"
+            err_add_proveedor.visible = True
+            formulario_valido = False
         else:
-            err_add_caducidad.visible = False
+            err_add_proveedor.visible = False
 
         if not formulario_valido:
             contenido_dialogo_add.update()
             return
 
-        nuevo_producto = {
+        datos_nuevo_producto = {
             "nombre": tf_add_nombre.value if tf_add_nombre.value else "Producto Nuevo",
             "tipo": dd_add_tipo.value,
-            "categoria": dd_add_tipo_med.value if dd_add_tipo.value == "Medicamento" else "General",
             "precio": precio_val,
             "stock": stock_val,
-            "caducidad": tf_add_caducidad.value if (dd_add_tipo.value == "Medicamento" and tf_add_caducidad.value) else "N/A",
-            "alertas": ["Stock bajo"] if stock_val <= 10 else [],
+            "caducidad": tf_add_caducidad.value if tf_add_caducidad.value else "N/A",
             "lote": tf_add_lote.value,
-            "imagen": imagen_add_seleccionada["path"]
+            "codigo": (tf_add_codigo.value or "").strip(),
+            "prov_id": int(dd_add_proveedor.value),
+            "marca": dd_add_marca.value,
+            "fraccion": dd_add_fraccion.value,
+            "imagen": imagen_add_seleccionada["path"],
         }
+
+        nuevo_producto = _crear_producto_bd(datos_nuevo_producto)
+
+        if not nuevo_producto:
+            snack_error = ft.SnackBar(content=ft.Text("No se pudo guardar el producto en la base de datos", color=ft.Colors.WHITE), bgcolor="#E53935")
+            page.overlay.append(snack_error)
+            snack_error.open = True
+            page.update()
+            return
+
+        nuevo_producto["imagen"] = imagen_add_seleccionada["path"]
+        nuevo_producto["alertas"] = ["Stock bajo"] if stock_val <= 10 else []
 
         PRODUCTOS_GLOBALES.insert(0, nuevo_producto)
         aplicar_filtros()
@@ -902,6 +1111,7 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
                                 ],
                                 spacing=10
                             ),
+                            ft.Container(content=campo_proveedor, expand=True),
                             linea_separadora_add,
                             btn_guardar_producto
                         ],
@@ -943,6 +1153,8 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
         tf_add_existencias.value = "100 pz"
         err_add_existencias.visible = False
         tf_add_lote.value = f"#{random.randint(1000000, 9999999)}"
+        dd_add_proveedor.value = None
+        err_add_proveedor.visible = False
 
         imagen_add_seleccionada["path"] = None
         contenedor_preview_imagen_add.content = _icono_imagen_vacia()
@@ -978,6 +1190,12 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
     tf_edit_precio.on_change = lambda e: _limpiar_error(err_edit_precio)
     tf_edit_existencias = _crear_tf_add(value="100 pz", text_align=ft.TextAlign.CENTER)
     tf_edit_existencias.on_change = lambda e: _limpiar_error(err_edit_existencias)
+
+    err_edit_proveedor = _crear_texto_error()
+    dd_edit_proveedor = _crear_dd_add([], None)
+    dd_edit_proveedor.options = _opciones_proveedor()
+    dd_edit_proveedor.hint_text = "Selecciona un proveedor"
+    dd_edit_proveedor.on_change = lambda e: _limpiar_error(err_edit_proveedor)
 
     def _manejar_cambio_tipo_edit(e):
         es_producto = dd_edit_tipo.value == "Producto"
@@ -1183,45 +1401,82 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
         else:
             err_edit_existencias.visible = False
 
-        if dd_edit_tipo.value == "Medicamento":
-            valor_caducidad = tf_edit_caducidad.value or ""
-            digitos_caducidad = ''.join(filter(str.isdigit, valor_caducidad))
+        valor_caducidad = tf_edit_caducidad.value or ""
+        digitos_caducidad = ''.join(filter(str.isdigit, valor_caducidad))
 
-            if not valor_caducidad.strip():
+        if not valor_caducidad.strip():
+            if dd_edit_tipo.value == "Medicamento":
                 err_edit_caducidad.value = "El medicamento necesita una fecha de caducidad"
                 err_edit_caducidad.visible = True
                 formulario_valido = False
-            elif len(digitos_caducidad) < 6:
-                err_edit_caducidad.value = "Se requiere llenar todos los campos de la fecha de caducidad"
+            else:
+                err_edit_caducidad.visible = False
+        elif len(digitos_caducidad) < 6:
+            err_edit_caducidad.value = "Se requiere llenar todos los campos de la fecha de caducidad"
+            err_edit_caducidad.visible = True
+            formulario_valido = False
+        else:
+            mes_caducidad = digitos_caducidad[:2]
+            anio_caducidad = digitos_caducidad[2:6]
+            mes_val = int(mes_caducidad)
+            digitos_repetidos = len(set(digitos_caducidad)) == 1
+
+            if digitos_repetidos or mes_val < 1 or mes_val > 12 or anio_caducidad == "0000":
+                err_edit_caducidad.value = "Se requiere una fecha de caducidad funcional"
                 err_edit_caducidad.visible = True
                 formulario_valido = False
             else:
-                mes_caducidad = digitos_caducidad[:2]
-                anio_caducidad = digitos_caducidad[2:6]
-                mes_val = int(mes_caducidad)
-                digitos_repetidos = len(set(digitos_caducidad)) == 1
+                err_edit_caducidad.visible = False
 
-                if digitos_repetidos or mes_val < 1 or mes_val > 12 or anio_caducidad == "0000":
-                    err_edit_caducidad.value = "Se requiere una fecha de caducidad funcional"
-                    err_edit_caducidad.visible = True
-                    formulario_valido = False
-                else:
-                    err_edit_caducidad.visible = False
+        if not dd_edit_proveedor.value:
+            err_edit_proveedor.value = "Selecciona un proveedor"
+            err_edit_proveedor.visible = True
+            formulario_valido = False
         else:
-            err_edit_caducidad.visible = False
+            err_edit_proveedor.visible = False
 
         if not formulario_valido:
             contenido_dialogo_edit.update()
             return
 
         prod = producto_a_editar[0]
-        prod["nombre"] = tf_edit_nombre.value if tf_edit_nombre.value else "Sin nombre"
-        prod["tipo"] = dd_edit_tipo.value
-        prod["categoria"] = dd_edit_tipo_med.value if dd_edit_tipo.value == "Medicamento" else "General"
-        prod["precio"] = precio_val
-        prod["stock"] = stock_val
-        prod["caducidad"] = tf_edit_caducidad.value if (dd_edit_tipo.value == "Medicamento" and tf_edit_caducidad.value) else "N/A"
-        prod["lote"] = tf_edit_lote.value
+
+        datos_editados = {
+            "id": prod.get("id"),
+            "tipo": dd_edit_tipo.value,
+            "nombre": tf_edit_nombre.value if tf_edit_nombre.value else "Sin nombre",
+            "precio": precio_val,
+            "stock": stock_val,
+            "caducidad": tf_edit_caducidad.value if tf_edit_caducidad.value else "N/A",
+            "lote": tf_edit_lote.value,
+            "codigo": (tf_edit_codigo.value or "").strip(),
+            "prov_id": int(dd_edit_proveedor.value),
+            "cat_id": prod.get("cat_id"),
+            "marca": dd_edit_marca.value,
+            "fraccion": dd_edit_fraccion.value,
+            "imagen": imagen_edit_seleccionada["path"],
+        }
+
+        datos_editados["tipo"] = prod.get("tipo")
+
+        exito = _actualizar_producto_bd(datos_editados)
+
+        if not exito:
+            snack_error = ft.SnackBar(content=ft.Text("No se pudo actualizar el producto en la base de datos", color=ft.Colors.WHITE), bgcolor="#E53935")
+            page.overlay.append(snack_error)
+            snack_error.open = True
+            page.update()
+            return
+
+        prod["nombre"] = datos_editados["nombre"]
+        prod["precio"] = datos_editados["precio"]
+        prod["stock"] = datos_editados["stock"]
+        prod["caducidad"] = datos_editados["caducidad"]
+        prod["lote"] = datos_editados["lote"]
+        prod["codigo"] = datos_editados["codigo"]
+        prod["prov_id"] = datos_editados["prov_id"]
+        prod["marca"] = datos_editados["marca"]
+        prod["fraccion"] = datos_editados["fraccion"]
         prod["imagen"] = imagen_edit_seleccionada["path"]
 
         aplicar_filtros()
@@ -1250,6 +1505,7 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
     )
 
     campo_tipo_med_edit = _crear_campo("Tipo de medicamento", dd_edit_tipo_med, label_color=color_label_campo, label_size=18)
+    campo_proveedor_edit = _crear_campo("Proveedor", dd_edit_proveedor, expandir=True, label_color=color_label_campo, label_size=18, error_ctrl=err_edit_proveedor)
 
     contenido_dialogo_edit = ft.Container(
         width=820,
@@ -1285,6 +1541,7 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
                                 ],
                                 spacing=10
                             ),
+                            ft.Container(content=campo_proveedor_edit, expand=True),
                             linea_separadora_add,
                             btn_guardar_cambios
                         ],
@@ -1315,6 +1572,7 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
         tf_edit_nombre.value = prod.get("nombre", "")
         err_edit_nombre.visible = False
         dd_edit_tipo.value = prod.get("tipo", "Medicamento")
+        dd_edit_tipo.disabled = True  # no se puede migrar entre medicamentos/productos al editar
         dd_edit_tipo_med.value = prod.get("categoria", "Analgésico")
         tf_edit_caducidad.value = prod.get("caducidad", "") if prod.get("caducidad") != "N/A" else ""
         err_edit_caducidad.visible = False
@@ -1323,7 +1581,13 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
         err_edit_precio.visible = False
         tf_edit_existencias.value = f"{prod.get('stock', 0)} pz"
         err_edit_existencias.visible = False
+        tf_edit_codigo.value = prod.get("codigo", "")
         err_edit_codigo.visible = False
+        dd_edit_fraccion.value = prod.get("fraccion") or "Fracción primera"
+        dd_edit_marca.value = prod.get("marca") or "Genérico"
+        prov_id_actual = prod.get("prov_id")
+        dd_edit_proveedor.value = str(prov_id_actual) if prov_id_actual else None
+        err_edit_proveedor.visible = False
 
         ruta_imagen_actual = prod.get("imagen")
         imagen_edit_seleccionada["path"] = ruta_imagen_actual
@@ -1353,6 +1617,14 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
         if not producto_a_eliminar[0]:
             return
         prod = producto_a_eliminar[0]
+
+        if not _eliminar_producto_bd(prod):
+            snack_error = ft.SnackBar(content=ft.Text("No se pudo eliminar el producto de la base de datos", color=ft.Colors.WHITE), bgcolor="#E53935")
+            page.overlay.append(snack_error)
+            snack_error.open = True
+            page.update()
+            cerrar_dialogo_eliminar()
+            return
 
         if prod in PRODUCTOS_GLOBALES:
             PRODUCTOS_GLOBALES.remove(prod)
