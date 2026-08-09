@@ -21,8 +21,14 @@ def crear_tarjeta_producto(producto, on_editar=None, on_eliminar=None):
         alertas_locales.insert(0, "Stock bajo")
 
     if caducidad and caducidad != "N/A":
-        try:
-            fecha_cad = datetime.strptime(caducidad, "%m/%Y")
+        fecha_cad = None
+        for _fmt in ("%m/%Y", "%m/%y"):
+            try:
+                fecha_cad = datetime.strptime(caducidad, _fmt)
+                break
+            except ValueError:
+                continue
+        if fecha_cad is not None:
             hoy = datetime.now()
             diferencia_meses = (fecha_cad.year - hoy.year) * 12 + (fecha_cad.month - hoy.month)
 
@@ -41,8 +47,6 @@ def crear_tarjeta_producto(producto, on_editar=None, on_eliminar=None):
                     alertas_locales.remove("Por caducar")
                 if "Caducado" in alertas_locales:
                     alertas_locales.remove("Caducado")
-        except ValueError:
-            pass
 
     # --- Imagen del producto (o placeholder si no tiene una asignada) ---
     ruta_imagen = producto.get("imagen")

@@ -251,17 +251,28 @@ for _i, (_nombre, _tipo, _productos, _lada, _numero) in enumerate(_PROVEEDORES_B
         "contacto": f"({_lada}){_numero}",
     })
 
+def _parsear_mmaaaa(caducidad):
+    """Acepta 'MM/AAAA' (formato correcto) y, por compatibilidad con datos
+    guardados con año de 2 dígitos ('MM/AA'), también ese formato.
+    Devuelve un datetime o None si no se pudo interpretar."""
+    for fmt in ("%m/%Y", "%m/%y"):
+        try:
+            return datetime.strptime(caducidad, fmt)
+        except ValueError:
+            continue
+    return None
+
+
 def obtener_estado_caducidad(caducidad):
     if not caducidad or caducidad == "N/A":
         return None
-    try:
-        fecha_cad = datetime.strptime(caducidad, "%m/%Y")
-        hoy = datetime.now()
-        diferencia_meses = (fecha_cad.year - hoy.year) * 12 + (fecha_cad.month - hoy.month)
-        if diferencia_meses < 0:
-            return "Caducado"
-        elif 0 <= diferencia_meses <= 3:
-            return "Por caducar"
-    except ValueError:
-        pass
+    fecha_cad = _parsear_mmaaaa(caducidad)
+    if fecha_cad is None:
+        return None
+    hoy = datetime.now()
+    diferencia_meses = (fecha_cad.year - hoy.year) * 12 + (fecha_cad.month - hoy.month)
+    if diferencia_meses < 0:
+        return "Caducado"
+    elif 0 <= diferencia_meses <= 3:
+        return "Por caducar"
     return None

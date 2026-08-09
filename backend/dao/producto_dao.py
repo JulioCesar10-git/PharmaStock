@@ -10,12 +10,11 @@ class ProductoDAO:
             sql = """
 
                 INSERT INTO productos (prod_codBarras, prod_nombre, prod_marca, prod_precio,
-                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id, prod_imagen)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING prod_id
 
             """
-
             conn = Conexion.obtener_conexion()
             conn.rollback()
             cur = conn.cursor()
@@ -23,7 +22,7 @@ class ProductoDAO:
 
                 prod.prod_codBarras, prod.prod_nombre, prod.prod_marca,
                 prod.prod_precio, prod.prod_existencia, prod.prod_lote,
-                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id, prod.cat_id
+                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id, prod.cat_id, prod.prod_imagen
 
             ))
             prod.prod_id = cur.fetchone()[0]
@@ -42,7 +41,7 @@ class ProductoDAO:
             sql = """
 
                 SELECT prod_id, prod_codBarras, prod_nombre, prod_marca, prod_precio,
-                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id
+                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id, prod_imagen
                 FROM productos
 
             """
@@ -56,7 +55,7 @@ class ProductoDAO:
                 prod_id=f[0], prod_codBarras=f[1], prod_nombre=f[2],
                 prod_marca=f[3], prod_precio=f[4], prod_existencia=f[5],
                 prod_lote=f[6], prod_fechaCad=f[7], prod_fraccion=f[8],
-                prov_id=f[9], cat_id=f[10]
+                prov_id=f[9], cat_id=f[10], prod_imagen=f[11]
             ) for f in filas]
         
         except Exception as e:
@@ -70,7 +69,7 @@ class ProductoDAO:
             sql = """
 
                 SELECT prod_id, prod_codBarras, prod_nombre, prod_marca, prod_precio,
-                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id
+                prod_existencia, prod_lote, prod_fechaCad, prod_fraccion, prov_id, cat_id, prod_imagen
                 FROM productos WHERE prod_id = %s
 
             """
@@ -85,7 +84,7 @@ class ProductoDAO:
                     prod_id=f[0], prod_codBarras=f[1], prod_nombre=f[2],
                     prod_marca=f[3], prod_precio=f[4], prod_existencia=f[5],
                     prod_lote=f[6], prod_fechaCad=f[7], prod_fraccion=f[8],
-                    prov_id=f[9], cat_id=f[10]
+                    prov_id=f[9], cat_id=f[10], prod_imagen=f[11]
                 )
             return None
         
@@ -132,7 +131,7 @@ class ProductoDAO:
                 UPDATE productos
                 SET prod_codBarras = %s, prod_nombre = %s, prod_marca = %s,
                 prod_precio = %s, prod_existencia = %s, prod_lote = %s, prod_fechaCad = %s,
-                prod_fraccion = %s, prov_id = %s, cat_id = %s
+                prod_fraccion = %s, prov_id = %s, cat_id = %s, prod_imagen = %s
                 WHERE prod_id=%s
 
             """
@@ -143,7 +142,7 @@ class ProductoDAO:
 
                 prod.prod_codBarras, prod.prod_nombre, prod.prod_marca,
                 prod.prod_precio, prod.prod_existencia, prod.prod_lote,
-                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id, prod.prod_id, prod.cat_id
+                prod.prod_fechaCad, prod.prod_fraccion, prod.prov_id, prod.cat_id, prod.prod_imagen, prod.prod_id
 
             ))
             conn.commit()
@@ -172,4 +171,53 @@ class ProductoDAO:
             print("Error al eliminar producto")
             print(e)
             return False
+
+    @staticmethod
+    def productos_por_caducar():
+        try:
+            sql = """
+
+                SELECT prod_id, prod_nombre, prod_fechaCad
+                FROM productos
+                WHERE prod_fechaCad <= CURRENT_DATE + INTERVAL '15 days'
+                AND prod_fechaCad >= CURRENT_DATE
+
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql)
+            filas = cur.fetchall()
+            cur.close()
+            return [{"id": f[0], "nombre": f[1], "fecha_caducidad": f[2]} for f in filas]
+        
+        except Exception as e:
+            Conexion.obtener_conexion().rollback()
+            print("Error al obtener productos por caducar")
+            print(e)
+            return []
+
+    @staticmethod
+    def productos_bajo_stock():
+        try:
+            sql = """
+
+                SELECT prod_id, prod_nombre, prod_existencia
+                FROM productos
+                WHERE prod_existencia < 10
+
+            """
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql)
+            filas = cur.fetchall()
+            cur.close()
+            return [{"id": f[0], "nombre": f[1], "existencia": f[2]} for f in filas]
+        
+        except Exception as e:
+            Conexion.obtener_conexion().rollback()
+            print("Error al obtener productos con bajo stock")
+            print(e)
+            return []
     
