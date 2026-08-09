@@ -1,5 +1,8 @@
 import flet as ft
+import asyncio
 from datetime import datetime
+
+from theme import colores
 
 INVENTARIO = [
     {"codigo": "7501234567890", "nombre": "DEXTROMETORFANO", "presentacion": "600MG", "precio": 56.00},
@@ -30,12 +33,13 @@ def fecha_larga_es(dt):
 
 
 
-def main(page: ft.Page):
+def main(page: ft.Page, on_salir=None):
     page.title = "Punto de venta"
     page.bgcolor = "white"
     page.padding = 10
     page.window.width = 1366
     page.window.height = 768
+    page.window.maximized = True
     page.fonts = {"Quicksand": "https://raw.githubusercontent.com/google/fonts/main/ofl/quicksand/Quicksand[wght].ttf"}
     page.theme = ft.Theme(
         font_family="Quicksand",
@@ -73,15 +77,31 @@ def main(page: ft.Page):
         value="",
     )
     # Campo de monto recibido
+    monto_focus = {"activo": False}
+    campo_activo = {"control": None}  # Rastrea qué campo (monto o código de barras) debe recibir el numpad
+
     monto_recibido_input = ft.TextField(
         hint_text="Monto recibido",
         hint_style=ft.TextStyle(size=12, color="#A9C2E8"),
         border=ft.InputBorder.NONE,  # Sin borde porque ya tiene el Container
         text_size=14,
-        width=100,
+        expand=True,
         content_padding=ft.Padding(left=5, top=0, right=5, bottom=0),
         on_submit=lambda e: procesar_cobro(),  # Al presionar Enter, procesa el cobro
+        on_focus=lambda e: (
+            monto_focus.update(activo=True),
+            campo_activo.update(control=monto_recibido_input),
+            setattr(monto_recibido_input, "hint_text", ""),  # Oculta el placeholder al enfocar
+            monto_recibido_input.update(),
+        ),
+        on_blur=lambda e: (
+            monto_focus.update(activo=False),
+            campo_activo.update(control=None) if campo_activo["control"] is monto_recibido_input else None,
+            setattr(monto_recibido_input, "hint_text", "Monto recibido") if not monto_recibido_input.value else None,  # Restaura el placeholder si quedó vacío
+            monto_recibido_input.update(),
+        ),
         disabled=True,  # Inicia deshabilitado
+        read_only=True,  # Todo el ingreso pasa por digito_presionado (numpad o teclado físico)
         value="",
         keyboard_type=ft.KeyboardType.NUMBER,
         input_filter=ft.InputFilter(
@@ -122,29 +142,40 @@ def main(page: ft.Page):
                             spacing=2,
                         ),
                         ft.Container(expand=True),
-                        ft.Column(
-                            [
-                                ft.Text("PHARMA STOCK", size=20, color="#1A365D", weight=ft.FontWeight.BOLD),
-                                ft.Text("F A R M A C I A", size=9, color="grey"),
-                            ],
-                            spacing=0,
-                            horizontal_alignment=ft.CrossAxisAlignment.END,
+                        ft.Image(
+                            src="Logo_PharmaStockCompleto_SinFondo(Letras).png",
+                            width=200,
+                            fit=ft.BoxFit.CONTAIN,
                         ),
                     ],
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
             ],
         ),
     )
     email_input = ft.TextField(
         hint_text="correo@ejemplo.com",
-        hint_style=ft.TextStyle(size=12, color="#A9C2E8"),
+        hint_style=ft.TextStyle(size=12, color="#3B71E8"),
+        text_style=ft.TextStyle(size=12, color="#3B71E8"),
+        text_align=ft.TextAlign.CENTER,
         border=ft.InputBorder.NONE,
         text_size=14,
-        width=200,
+        width=float("inf"),
         content_padding=ft.Padding(left=5, top=0, right=5, bottom=0),
         on_submit=lambda e: enviar_ticket_email(),
+        on_change=lambda e: limpiar_error_email(),
         value="",
         disabled = True,
+    )
+
+    # Texto de error en rojo para las validaciones del correo (no usamos error_text
+    # porque no está disponible en esta versión de Flet)
+    email_error_text = ft.Text(
+        "",
+        size=11,
+        color="red",
+        text_align=ft.TextAlign.CENTER,
+        visible=False,
     )
 
     enviar_email_btn = ft.ElevatedButton(
@@ -164,13 +195,11 @@ def main(page: ft.Page):
     def bloqueado_por_cobro():
     #Muestra aviso y devuelve True si hay un cobro en proceso (bloquea la acción)."""
         if cobro_activo:
-            page.snack_bar = ft.SnackBar(ft.Text("Finaliza el cobro actual para continuar"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Finaliza el cobro actual para continuar")))
             page.update()
             return True
         if venta_completada:
-            page.snack_bar = ft.SnackBar(ft.Text("Haz clic en 'Nuevo' para iniciar otro ticket"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Haz clic en 'Nuevo' para iniciar otro ticket")))
             page.update()
             return True
         return False
@@ -185,8 +214,7 @@ def main(page: ft.Page):
                 nombre_producto_display.value = f"► {item['nombre']} (seleccionado)"
                 cantidad_display.content = ft.Text(str(item["cantidad"]), size=16, color="#1565c0")
                 actualizar_ticket()
-                page.snack_bar = ft.SnackBar(ft.Text(f"Seleccionado: {item['nombre']}"))
-                page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(ft.Text(f"Seleccionado: {item['nombre']}")))
                 page.update()
                 return
 
@@ -195,8 +223,7 @@ def main(page: ft.Page):
         if bloqueado_por_cobro():
             return
         if producto_seleccionado is None:
-            page.snack_bar = ft.SnackBar(ft.Text("Selecciona un producto primero"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Selecciona un producto primero")))
             page.update()
             return
         for item in ticket_items:
@@ -213,8 +240,7 @@ def main(page: ft.Page):
         if bloqueado_por_cobro():
             return
         if producto_seleccionado is None:
-            page.snack_bar = ft.SnackBar(ft.Text("Selecciona un producto primero"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Selecciona un producto primero")))
             page.update()
             return
         for i, item in enumerate(ticket_items):
@@ -226,8 +252,7 @@ def main(page: ft.Page):
                     nombre_producto_display.value = f"► {item['nombre']} (seleccionado)"
                     page.update()
                 else:
-                    page.snack_bar = ft.SnackBar(ft.Text("¿Eliminar producto? Usa el botón Eliminar"))
-                    page.snack_bar.open = True
+                    page.show_dialog(ft.SnackBar(ft.Text("¿Eliminar producto? Usa el botón Eliminar")))
                     page.update()
                 return
 
@@ -236,8 +261,7 @@ def main(page: ft.Page):
         if bloqueado_por_cobro():
             return
         if producto_seleccionado is None:
-            page.snack_bar = ft.SnackBar(ft.Text("Selecciona un producto primero"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Selecciona un producto primero")))
             page.update()
             return
         ticket_items[:] = [item for item in ticket_items if item["codigo"] != producto_seleccionado["codigo"]]
@@ -245,8 +269,7 @@ def main(page: ft.Page):
         nombre_producto_display.value = ""
         cantidad_display.content = ft.Text("1", size=16, color="#1565c0")
         actualizar_ticket()
-        page.snack_bar = ft.SnackBar(ft.Text("Producto eliminado"))
-        page.snack_bar.open = True
+        page.show_dialog(ft.SnackBar(ft.Text("Producto eliminado")))
         page.update()
 
     def agregar_al_ticket(producto, cantidad=1):
@@ -285,7 +308,7 @@ def main(page: ft.Page):
                         [
                             ft.Icon(ft.Icons.LOCK, color="white", size=40),
                             ft.Text("PROCESANDO COBRO", size=24, color="white", weight=ft.FontWeight.BOLD),
-                            ft.Image(src="PharmaStock_fondonegro.png", width=140, height=140, fit="contain"),
+                            ft.Image(src="PharmaStock_LogoOscuro_3.png", width=140, height=140, fit="contain"),
                             ft.Text(f"Total a cobrar: ${total:.2f}", size=18, color="white"),
                             ft.Text("Ingresa el monto recibido para continuar", size=14, color="white"),
                         ],
@@ -382,8 +405,7 @@ def main(page: ft.Page):
     def limpiar_ticket():
         global producto_seleccionado, cobro_activo, venta_completada
         if cobro_activo:
-            page.snack_bar = ft.SnackBar(ft.Text("Finaliza el cobro actual para continuar"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Finaliza el cobro actual para continuar")))
             page.update()
             return
         ticket_items.clear()
@@ -396,7 +418,9 @@ def main(page: ft.Page):
         monto_recibido_input.value = ""
         email_input.disabled = True
         email_input.value =""
-        enviar_email_btn.disabled
+        email_error_text.value = ""
+        email_error_text.visible = False
+        enviar_email_btn.disabled = True
         actualizar_ticket()
         page.update()
 
@@ -410,12 +434,10 @@ def main(page: ft.Page):
             if producto:
                 nombre_producto_display.value = producto['nombre']
                 agregar_al_ticket(producto)
-                page.snack_bar = ft.SnackBar(ft.Text(f"✓ {producto['nombre']} agregado"))
-                page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(ft.Text(f"✓ {producto['nombre']} agregado")))
             else:
                 nombre_producto_display.value = ""
-                page.snack_bar = ft.SnackBar(ft.Text("Producto no encontrado"))
-                page.snack_bar.open = True
+                page.show_dialog(ft.SnackBar(ft.Text("Producto no encontrado")))
             codigo_barras_input.value = ""
             page.update()
 
@@ -444,23 +466,23 @@ def main(page: ft.Page):
                 ],
                 spacing=0,
             ),
-            padding= ft.Padding(left = 4, top = 4, right = 4, bottom = 6),
-            bgcolor = "#D6E6FA" if seleccionado else None,
-            border = ft.Border(bottom=ft.BorderSide(2, "#1565c0")) if seleccionado else None,
-            border_radius=6,
-            on_click=None if bloqueado else (lambda e: seleccionar_producto(codigo)),  
+            padding= ft.Padding(left = 10, top = 6, right = 10, bottom = 8),
+            margin=ft.Margin(left=0, top=0, right=0, bottom=4),
+            bgcolor = "#D6E6FA" if seleccionado else ("#F4F9FF" if not bloqueado else "#E8EEF7"),
+            border = ft.Border(bottom=ft.BorderSide(2, "#1565c0")) if seleccionado else border_all(1, "#C9DCF5"),
+            border_radius=8,
+            ink=not bloqueado,
+            on_click=None if bloqueado else (lambda e: seleccionar_producto(codigo)),
         )
     def activar_monto_recibido():
         global cobro_activo
         if venta_completada:
-            page.snack_bar = ft.SnackBar(ft.Text("Haz clic en 'Nuevo' para iniciar otro ticket"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Haz clic en 'Nuevo' para iniciar otro ticket")))
             page.update()
             return
     #Activa el campo de monto recibido y le da foco
         if not ticket_items:
-            page.snack_bar = ft.SnackBar(ft.Text("No hay productos para cobrar"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("No hay productos para cobrar")))
             page.update()
             return
         if not monto_recibido_input.disabled:
@@ -473,16 +495,14 @@ def main(page: ft.Page):
         actualizar_ticket()
         monto_recibido_input.focus()
         page.update()
-        page.snack_bar = ft.SnackBar(ft.Text("Ingresa el monto recibido"))
-        page.snack_bar.open = True
+        page.show_dialog(ft.SnackBar(ft.Text("Ingresa el monto recibido")))
         page.update()
 
     def procesar_cobro():
         """Procesa el cobro y calcula el cambio"""
         global cobro_activo, venta_completada
         if not ticket_items:
-            page.snack_bar = ft.SnackBar(ft.Text("No hay productos para cobrar"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("No hay productos para cobrar")))
             page.update()
             return
         
@@ -491,8 +511,7 @@ def main(page: ft.Page):
 
         valor = monto_recibido_input.value.strip()
         if not valor:
-            page.snack_bar = ft.SnackBar(ft.Text("Ingresa un monto válido"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Ingresa un monto válido")))
             page.update()
             return
         
@@ -500,14 +519,12 @@ def main(page: ft.Page):
             valor_limpio = valor.replace("$", "").replace(",", "").strip()
             monto_recibido = float(valor_limpio)
         except ValueError:
-            page.snack_bar = ft.SnackBar(ft.Text("Ingresa un monto válido"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Ingresa un monto válido")))
             page.update()
             return
         
         if monto_recibido < total:
-            page.snack_bar = ft.SnackBar(ft.Text(f"Monto insuficiente. Total: ${total:.2f}"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text(f"Monto insuficiente. Total: ${total:.2f}")))
             page.update()
             return
         
@@ -528,9 +545,69 @@ def main(page: ft.Page):
         enviar_email_btn.disabled = False
         page.update()
         
-        page.snack_bar = ft.SnackBar(ft.Text(f"¡Cobro exitoso! Cambio: ${cambio:.2f}"))
-        page.snack_bar.open = True
+        page.show_dialog(ft.SnackBar(ft.Text(f"¡Cobro exitoso! Cambio: ${cambio:.2f}")))
         page.update()
+
+    def digito_presionado(valor):
+        """Inserta un dígito/punto o borra el último carácter en el campo actualmente
+        activo (código de barras o monto recibido, el que se haya clicado/enfocado)."""
+        campo = campo_activo["control"]
+
+        if campo is None:
+            page.show_dialog(ft.SnackBar(ft.Text("Selecciona el campo de código de barras o de monto primero")))
+            page.update()
+            return
+
+        if campo is monto_recibido_input and monto_recibido_input.disabled:
+            page.show_dialog(ft.SnackBar(ft.Text("Presiona 'Cobrar' para ingresar el monto")))
+            page.update()
+            return
+
+        actual = campo.value or ""
+
+        if valor == "⌫":
+            actual = actual[:-1]
+        elif valor == ".":
+            if "." not in actual:
+                actual += "."
+        else:
+            actual += valor
+
+        campo.value = actual
+        campo.update()
+
+    def manejar_teclado(e: ft.KeyboardEvent):
+        """Conecta el teclado físico con las mismas acciones del numpad en pantalla,
+        pero solo cuando el campo de monto recibido tiene el foco (para no interferir
+        con el código de barras u otros campos de texto). Reconoce tanto el renglón
+        superior de números como las teclas del numpad (teclado numérico)."""
+        if not monto_focus["activo"]:
+            return
+
+        key = e.key
+
+        # Variantes con las que distintas plataformas reportan las teclas del numpad
+        numpad_digitos = {
+            "Numpad 0": "0", "Numpad 1": "1", "Numpad 2": "2", "Numpad 3": "3",
+            "Numpad 4": "4", "Numpad 5": "5", "Numpad 6": "6", "Numpad 7": "7",
+            "Numpad 8": "8", "Numpad 9": "9",
+            "Numpad0": "0", "Numpad1": "1", "Numpad2": "2", "Numpad3": "3",
+            "Numpad4": "4", "Numpad5": "5", "Numpad6": "6", "Numpad7": "7",
+            "Numpad8": "8", "Numpad9": "9",
+        }
+
+        if key in numpad_digitos:
+            digito_presionado(numpad_digitos[key])
+        elif key and key in "0123456789":
+            digito_presionado(key)
+        elif key in (".", "Numpad Decimal", "NumpadDecimal", "Decimal"):
+            digito_presionado(".")
+        elif key in ("Backspace", "Numpad Backspace", "NumpadBackspace"):
+            digito_presionado("⌫")
+        elif key in ("Enter", "Numpad Enter", "NumpadEnter"):
+            procesar_cobro()
+
+    page.on_keyboard_event = manejar_teclado
 
     def actualizar_ticket_con_pago(monto_recibido, cambio):
         for i, control in enumerate(ticket_body.content.controls):
@@ -541,32 +618,47 @@ def main(page: ft.Page):
                     control.controls[2].value = f"${cambio:.2f}"
         page.update()
 
+    def limpiar_error_email():
+        """Quita el mensaje de error en rojo del campo de correo mientras el usuario escribe."""
+        if email_error_text.visible:
+            email_error_text.value = ""
+            email_error_text.visible = False
+            email_error_text.update()
+
+    def mostrar_error_email(mensaje):
+        email_error_text.value = mensaje
+        email_error_text.visible = True
+        email_error_text.update()
+
     def enviar_ticket_email():
     #Envía el ticket por correo electrónico
         if not venta_completada:
-            page.snack_bar = ft.SnackBar(ft.Text("Completa el cobro antes de enviar el ticket"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("Completa el cobro antes de enviar el ticket")))
             page.update()
             return
         if not ticket_items:
-            page.snack_bar = ft.SnackBar(ft.Text("No hay productos en el ticket para enviar"))
-            page.snack_bar.open = True
+            page.show_dialog(ft.SnackBar(ft.Text("No hay productos en el ticket para enviar")))
             page.update()
             return
-    
-        email = email_input.value.strip()
-        if not email:
-            page.snack_bar = ft.SnackBar(ft.Text("Ingresa un correo electrónico"))
-            page.snack_bar.open = True
-            page.update()
+
+        email = email_input.value or ""
+
+        if not email.strip():
+            mostrar_error_email("Ingresa un correo electrónico")
             return
-    
-        # Validar formato básico de email
-        if "@" not in email or "." not in email:
-            page.snack_bar = ft.SnackBar(ft.Text("Correo electrónico no válido"))
-            page.snack_bar.open = True
-            page.update()
+
+        # Validación: no se permiten espacios en el correo
+        if " " in email:
+            mostrar_error_email("No puedes dejar espacios en el correo")
             return
+
+        # Validación: el correo debe contener un @
+        if "@" not in email:
+            mostrar_error_email("Recuerda colocar un @ en el correo")
+            return
+
+        # Correo válido: se quita cualquier error previo
+        limpiar_error_email()
         
         # Construir el contenido del ticket
         total_articulos = sum(item["cantidad"] for item in ticket_items)
@@ -602,13 +694,87 @@ def main(page: ft.Page):
         print(ticket_text)
         
         # Aquí iría la lógica real de envío de correo
-        # Por ahora solo mostramos un mensaje de éxito
-        page.snack_bar = ft.SnackBar(ft.Text(f"¡Ticket enviado a {email}!"))
-        page.snack_bar.open = True
+        # Notificación en la parte inferior confirmando el envío
+        page.show_dialog(ft.SnackBar(ft.Text(f"✓ Ticket enviado correctamente a {email}")))
         
         # Limpiar campo después de enviar
         email_input.value = ""
         page.update()
+
+    def salir_pos(e):
+        #Pide confirmación antes de cerrar sesión y regresar al login
+        c = colores()
+
+        def cerrar_dialogo_salir(e_click):
+            modal_confirmacion_salir.open = False
+            page.update()
+
+        def confirmar_salir(e_click):
+            modal_confirmacion_salir.open = False
+            page.update()
+            if on_salir:
+                on_salir()
+            else:
+                page.controls.clear()
+                page.update()
+
+        btn_cancelar_salir = ft.Container(
+            content=ft.Text("Cancelar", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD, size=14),
+            padding=ft.Padding.symmetric(horizontal=10, vertical=6),
+            border_radius=30,
+            bgcolor=c["boton_secundario"],
+            on_click=cerrar_dialogo_salir,
+            ink=True,
+            expand=True,
+            alignment=ft.Alignment.CENTER,
+        )
+
+        btn_confirmar_salir = ft.Container(
+            content=ft.Text("Cerrar sesión", color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD, size=14),
+            padding=ft.Padding.symmetric(horizontal=10, vertical=6),
+            border_radius=30,
+            bgcolor=c["text_red"],
+            on_click=confirmar_salir,
+            ink=True,
+            expand=True,
+            alignment=ft.Alignment.CENTER,
+        )
+
+        modal_confirmacion_salir = ft.AlertDialog(
+            title=ft.Text(
+                "Confirmar cierre de sesión",
+                color=c["input_bg"],
+                weight=ft.FontWeight.BOLD,
+                size=22,
+                text_align=ft.TextAlign.CENTER,
+            ),
+            title_padding=ft.Padding.only(left=24, top=24, right=24, bottom=0),
+            content=ft.Container(
+                width=450,
+                content=ft.Text(
+                    "¿Está segur@ de cerrar la sesión?",
+                    color=c["input_bg"],
+                    size=18,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+            ),
+            actions=[
+                ft.Container(
+                    width=450,
+                    content=ft.Row(
+                        [btn_cancelar_salir, btn_confirmar_salir],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        spacing=20,
+                    ),
+                )
+            ],
+            actions_alignment=ft.MainAxisAlignment.CENTER,
+        )
+
+        page.overlay.append(modal_confirmacion_salir)
+        modal_confirmacion_salir.open = True
+        page.update()
+
     # ============================================================
     # 3. CREAR EL RESTO DE LA UI
     # ============================================================
@@ -634,6 +800,27 @@ def main(page: ft.Page):
     # PANEL DERECHO: POS
     # ---------------------------------------------------------------
 
+    salir_btn = ft.Container(
+        height=36,
+        padding=ft.Padding.symmetric(horizontal=14, vertical=0),
+        border_radius=18,
+        bgcolor="white",
+        alignment=ft.Alignment.CENTER,
+        content=ft.Row(
+            [
+                ft.Icon(ft.Icons.MEETING_ROOM_OUTLINED, color="#5086EC", size=20),
+                ft.Text("Salir", color="#5086EC", size=14, weight=ft.FontWeight.W_600),
+            ],
+            spacing=6,
+            tight=True,
+            alignment=ft.MainAxisAlignment.CENTER,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        on_click=salir_pos,
+        ink=True,
+        tooltip="Cerrar sesión",
+    )
+
     top_bar = ft.Container(
         bgcolor="#EDF5FC",
         padding=10,
@@ -643,6 +830,7 @@ def main(page: ft.Page):
                 ft.Text(datetime.now().strftime("%I:%M %p").lower(), color="#0B2B63", size=14, weight=ft.FontWeight.BOLD),
                 ft.Text(fecha_larga_es(datetime.now()), size=14, color="black"),
                 ft.Container(expand=True),
+                salir_btn,
             ],
             alignment=ft.MainAxisAlignment.START,
         ),
@@ -656,12 +844,16 @@ def main(page: ft.Page):
         content=ft.Column(
             [
 
-                ft.Text("Enviar ticket por correo", size=14, color="black", weight=ft.FontWeight.BOLD),
-                ft.Row( 
-                    [
-                        email_input,
-                    ],
-                    alignment=ft.MainAxisAlignment.CENTER,
+                ft.Text("Enviar ticket por correo", size=14, color="black", weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+                ft.Container(
+                    content=email_input,
+                    width=float("inf"),
+                    alignment=ft.Alignment.CENTER,
+                ),
+                ft.Container(
+                    content=email_error_text,
+                    width=float("inf"),
+                    alignment=ft.Alignment.CENTER,
                 ),
                 ft.Row(
                     [
@@ -687,6 +879,8 @@ def main(page: ft.Page):
         text_size=14,
         content_padding=ft.Padding(left=15, top=5, right=15, bottom=5),
         on_submit=lambda e: procesar_codigo_barras(codigo_barras_input.value),
+        on_focus=lambda e: campo_activo.update(control=codigo_barras_input),
+        on_blur=lambda e: campo_activo.update(control=None) if campo_activo["control"] is codigo_barras_input else None,
     )
 
     usuario_codbarr_row = ft.Container(
@@ -762,7 +956,7 @@ def main(page: ft.Page):
             bgcolor="white",
             border=border_all(1, "#cccccc"),
             padding=ft.Padding(left=10, top=5, right=10, bottom=5),
-            expand=4,
+            expand=6,
             height=55,
             border_radius=14,
         ),
@@ -785,6 +979,21 @@ def main(page: ft.Page):
     )
 
     def numpad_btn(texto):
+        async def al_presionar(e):
+            boton = e.control
+            # "Aprieta" el botón: lo encoge y oscurece un poco
+            boton.scale = 0.88
+            boton.bgcolor = "#D6E6FA"
+            boton.update()
+
+            digito_presionado(texto)
+
+            # Pequeña pausa para que se note la animación y luego regresa a su estado normal
+            await asyncio.sleep(0.08)
+            boton.scale = 1
+            boton.bgcolor = "#EDF5FC"
+            boton.update()
+
         return ft.Container(
             content=ft.Text(texto, size=18, color="black"),
             bgcolor="#EDF5FC",
@@ -792,6 +1001,12 @@ def main(page: ft.Page):
             alignment=ft.Alignment(0, 0),
             width=55,
             height=55,
+            border_radius=8,
+            ink=True,
+            scale=1,
+            animate_scale=ft.Animation(100, ft.AnimationCurve.EASE_OUT),
+            animate=ft.Animation(100, ft.AnimationCurve.EASE_OUT),  # anima el cambio de bgcolor
+            on_click=al_presionar,
         )
 
     numpad = ft.Column(
@@ -843,4 +1058,4 @@ def main(page: ft.Page):
     actualizar_ticket()
 
 if __name__ == "__main__":
-    ft.run(main)
+    ft.run(main, assets_dir="assets")

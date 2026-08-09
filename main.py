@@ -37,7 +37,6 @@ def main_window(page: ft.Page):
     }
     modulo_recordatorios = crear_modulo_recordatorios(page, fecha_activa)
     estado_navegacion = {"seccion_actual": "General"}
-    usuario_sesion = {"usuario": None}
 
     # --- Diálogo: centro de notificaciones ---
     def abrir_modal_notificaciones(e):
@@ -146,7 +145,7 @@ def main_window(page: ft.Page):
         def confirmar_cierre(e_click):
             modal_confirmacion.open = False
             page.controls.clear()
-            page.add(vista_login(page, on_login_exitoso=on_login_exitoso))
+            page.add(vista_login(page, on_login_exitoso=entrar_a_la_app))
 
             snack_sesion_cerrada = ft.SnackBar(
                 content=ft.Text("Has cerrado sesión con éxito"),
@@ -325,7 +324,7 @@ def main_window(page: ft.Page):
                     ft.Text(key_clickeado, size=24, weight=ft.FontWeight.BOLD, color=c["input_bg"])
                 ]
             elif key_clickeado == "Ajustes":
-                area_dinamica.content = vista_ajustes(page, construir_interfaz, usuario_sesion["usuario"])
+                area_dinamica.content = vista_ajustes(page, construir_interfaz)
                 titulo_seccion_text.controls = [
                     ft.Text(key_clickeado, size=24, weight=ft.FontWeight.BOLD, color=c["input_bg"])
                 ]
@@ -354,8 +353,8 @@ def main_window(page: ft.Page):
                                 alignment=ft.Alignment.CENTER,
                                 content=ft.Row(
                                     [
-                                        ft.Icon(ft.Icons.MEETING_ROOM_OUTLINED, color=c["azul_card"], size=20),
-                                        ft.Text("Salir", color=c["azul_card"], size=14, weight=ft.FontWeight.W_600),
+                                        ft.Icon(ft.Icons.MEETING_ROOM_OUTLINED, color="#0A3277", size=20),
+                                        ft.Text("Salir", color="#0A3277", size=14, weight=ft.FontWeight.W_600),
                                     ],
                                     spacing=6,
                                     tight=True,
@@ -475,7 +474,7 @@ def main_window(page: ft.Page):
         elif estado_navegacion["seccion_actual"] == "Proveedores":
             contenido_inicial = vista_proveedores(page)
         elif estado_navegacion["seccion_actual"] == "Ajustes":
-            contenido_inicial = vista_ajustes(page, construir_interfaz, usuario_sesion["usuario"])
+            contenido_inicial = vista_ajustes(page, construir_interfaz)
         else:
             contenido_inicial = vista_general(page, fecha_activa, modulo_recordatorios, cambiar_seccion)
 
@@ -494,16 +493,29 @@ def main_window(page: ft.Page):
         page.add(ft.Row([menu_lateral, contenido_principal], expand=True, spacing=0))
         page.update()
 
-    def on_login_exitoso(usuario):
-        print(f"✅ Bienvenido {usuario.usuario_usuario}")
-        usuario_sesion["usuario"] = usuario  # <-- agrega esto
+    def entrar_a_la_app(usuario, password):
+        # El login ya fue validado en login_view.py contra los datos de Ajustes
+
+        # --- Acceso directo al Punto de Venta ---
+        if usuario == "isaac@gmail.com" and password == "pharmastock":
+            def volver_al_login():
+                page.controls.clear()
+                page.add(vista_login(page, on_login_exitoso=entrar_a_la_app))
+                page.update()
+
+            page.controls.clear()
+            punto_venta.main(page, on_salir=volver_al_login)
+            page.update()
+            return
+
         estado_navegacion["seccion_actual"] = "General"
         page.controls.clear()
         construir_interfaz()
 
+    # --- Se muestra el login como pantalla inicial ---
     page.controls.clear()
-    page.add(vista_login(page, on_login_exitoso=on_login_exitoso))
+    page.add(vista_login(page, on_login_exitoso=entrar_a_la_app))
     page.update()
-    
 
-ft.app(target=main_window, assets_dir="frontend/assets")
+if __name__ == "__main__":
+    ft.app(target=main_window, assets_dir="frontend/assets")
