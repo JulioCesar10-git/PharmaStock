@@ -7,6 +7,9 @@ import flet as ft
 from frontend.theme import colores
 from frontend.state import ESTADO_UI
 
+# IMPORTAR BACKEND
+from backend.dao.usuario_dao import UsuarioDAO
+
 CARGOS_DISPONIBLES = ["Administrador", "Gerente", "Farmacéutico", "Cajero", "Almacenista"]
 
 # --- Estado de sesión: se mantiene mientras la app está abierta, sin importar
@@ -195,9 +198,16 @@ def _placeholder_diagonal(color, size):
 # ============================================================
 # Pestaña "Perfil": foto, datos personales, contacto y contraseña
 # ============================================================
-def _vista_perfil(page: ft.Page, c):
+def _vista_perfil(page: ft.Page, c, usuario_actual = None):
     # --- Selector de imagen vía tkinter.filedialog (igual que en Inventario) ---
     EXTENSIONES_IMAGEN = [("Imágenes", "*.png *.jpg *.jpeg *.gif *.bmp *.webp")]
+
+    if usuario_actual and usuario_actual.usuario_id:
+        usuario_fresco = UsuarioDAO.obtener_por_id(usuario_actual.usuario_id)
+        if usuario_fresco:
+            usuario_actual = usuario_fresco
+            print(f"Usuario recargado: {usuario_actual.usuario_usuario}, {usuario_actual.usuario_apellidoPat}, {usuario_actual.usuario_telefono}")
+            
 
     def _seleccionar_archivo_imagen():
         raiz = tk.Tk()
@@ -217,6 +227,19 @@ def _vista_perfil(page: ft.Page, c):
         ruta_foto_guardada = _leer_guardado(page, "perfil_foto", None)
         _ESTADO_PERFIL_SESION["foto"] = ruta_foto_guardada
         _ESTADO_PERFIL_SESION["foto_cargada"] = True
+
+    # Datos del usuario - FUERA del if
+    nombre_val = usuario_actual.usuario_usuario if usuario_actual else "Sin nombre"
+    apellidos_val = f"{usuario_actual.usuario_apellidoPat or ''} {usuario_actual.usuario_apellidoMat or ''}".strip() if usuario_actual else ""
+    correo_val = usuario_actual.usuario_correoElec if usuario_actual else ""
+    cargo_val = usuario_actual.usuario_cargo if usuario_actual else ""
+    telefono_val = str(usuario_actual.usuario_telefono[0] if isinstance(usuario_actual.usuario_telefono, tuple) else usuario_actual.usuario_telefono or "")
+    imagen_val = usuario_actual.usuario_imagen if usuario_actual else None
+
+    # Usar imagen del usuario si no hay foto de sesión
+    if not ruta_foto_guardada and imagen_val:
+        ruta_foto_guardada = imagen_val
+        _ESTADO_PERFIL_SESION["foto"] = ruta_foto_guardada
 
     def _contenido_foto(ruta):
         if ruta:
@@ -273,13 +296,11 @@ def _vista_perfil(page: ft.Page, c):
     )
 
     # --- Campos de nombre, apellidos y cargo ---
-    columna_nombre, campo_nombre = _campo_editable("Nombre", "Diego Saúl", c, page=page, storage_key="perfil_nombre")
-    columna_apellidos, campo_apellidos = _campo_editable(
-        "Apellidos", "Cervantes Cervantes", c, page=page, storage_key="perfil_apellidos"
-    )
+    columna_nombre, campo_nombre = _campo_editable("Nombre", nombre_val, c)
+    columna_apellidos, campo_apellidos = _campo_editable("Apellidos", apellidos_val, c)
 
     campo_cargo = ft.TextField(
-        value="Administrador",
+        value=cargo_val,
         read_only=True,
         expand=True,
         border_color=c["azul_card"],
@@ -306,14 +327,7 @@ def _vista_perfil(page: ft.Page, c):
     )
 
     # --- Campo de correo ---
-    columna_correo, campo_correo = _campo_editable(
-        "Correo electrónico",
-        "cervantes@gmail.com",
-        c,
-        page=page,
-        storage_key="perfil_correo",
-        keyboard_type=ft.KeyboardType.EMAIL,
-    )
+    columna_correo, campo_correo = _campo_editable("Correo electrónico", correo_val, c, keyboard_type=ft.KeyboardType.EMAIL)
 
     # --- Teléfono: código de país + número ---
     dropdown_codigo_pais = ft.Dropdown(
@@ -330,7 +344,7 @@ def _vista_perfil(page: ft.Page, c):
     )
 
     campo_telefono = ft.TextField(
-        value=_leer_guardado(page, "perfil_tel_numero", "242 658 6982"),
+        value=''.join(filter(str.isdigit, telefono_val))[-10:],
         read_only=True,
         border_color=c["azul_card"],
         border_radius=30,
@@ -353,16 +367,16 @@ def _vista_perfil(page: ft.Page, c):
 
     # --- Contraseña con botón para mostrar/ocultar ---
     campo_contrasena = ft.TextField(
-        value=_leer_guardado(page, "perfil_contrasena", "12345678"),
-        password=True,
-        read_only=True,
-        border_color=c["azul_card"],
-        border_radius=30,
-        content_padding=ft.Padding.symmetric(horizontal=20, vertical=10),
-        bgcolor=c["bg_card_blue"],
-        color=c["input_bg"],
-        text_size=TAM_TEXTO_PERFIL,
-        expand=True,
+    value="••••••••",
+    password=False,
+    read_only=True,
+    border_color=c["azul_card"],
+    border_radius=30,
+    content_padding=ft.Padding.symmetric(horizontal=20, vertical=10),
+    bgcolor=c["bg_card_blue"],
+    color=c["input_bg"],
+    text_size=TAM_TEXTO_PERFIL,
+    expand=True,
     )
 
     def alternar_ver_contrasena(e):
@@ -514,7 +528,7 @@ def _vista_aplicacion(page: ft.Page, c, reconstruir_interfaz):
 # ============================================================
 # Punto de entrada: vista de Ajustes con selector de pestañas
 # ============================================================
-def vista_ajustes(page: ft.Page, reconstruir_interfaz):
+def vista_ajustes(page: ft.Page, reconstruir_interfaz, usuario_actual = None):
     c = colores()
     area_contenido = ft.Container(expand=True)
     selector_container = ft.Container()
@@ -523,7 +537,8 @@ def vista_ajustes(page: ft.Page, reconstruir_interfaz):
     def cambiar_pestana(key):
         selector_container.content = _selector_pestanas(key, cambiar_pestana, c)
         area_contenido.content = (
-            _vista_perfil(page, c) if key == "perfil" else _vista_aplicacion(page, c, reconstruir_interfaz)
+            _vista_perfil(page, c, usuario_actual) if key == "perfil" 
+            else _vista_aplicacion(page, c, reconstruir_interfaz)
         )
         page.update()
 
