@@ -233,7 +233,12 @@ def _vista_perfil(page: ft.Page, c, usuario_actual = None):
     apellidos_val = f"{usuario_actual.usuario_apellidoPat or ''} {usuario_actual.usuario_apellidoMat or ''}".strip() if usuario_actual else ""
     correo_val = usuario_actual.usuario_correoElec if usuario_actual else ""
     cargo_val = usuario_actual.usuario_cargo if usuario_actual else ""
-    telefono_val = str(usuario_actual.usuario_telefono[0] if isinstance(usuario_actual.usuario_telefono, tuple) else usuario_actual.usuario_telefono or "")
+    if usuario_actual and isinstance(usuario_actual.usuario_telefono, tuple):
+        telefono_val = str(usuario_actual.usuario_telefono[0] or "")
+    elif usuario_actual:
+        telefono_val = str(usuario_actual.usuario_telefono or "")
+    else:
+        telefono_val = ""
     imagen_val = usuario_actual.usuario_imagen if usuario_actual else None
 
     # Usar imagen del usuario si no hay foto de sesión

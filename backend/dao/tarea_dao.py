@@ -9,8 +9,8 @@ class TareaDAO:
 
             sql = """
 
-                INSERT INTO tareas (tarea_asunto)
-                VALUES (%s)
+                INSERT INTO tareas (tarea_asunto, tarea_fecha)
+                VALUES (%s, %s)
                 RETURNING tarea_id
 
             """
@@ -19,6 +19,7 @@ class TareaDAO:
             cur = conn.cursor()
             cur.execute(sql, (
                 tarea.tarea_asunto,
+                tarea.tarea_fecha,
             ))
             tarea.tarea_id = cur.fetchone()[0]
             conn.commit()
@@ -34,9 +35,9 @@ class TareaDAO:
     def obtener_todos():
         try:
             sql = """
-                SELECT tarea_id, tarea_asunto
+                SELECT tarea_id, tarea_asunto, tarea_fecha
                 FROM tareas
-                ORDER BY tarea_id
+                ORDER BY tarea_fecha, tarea_id
             """
 
             conn = Conexion.obtener_conexion()
@@ -50,7 +51,8 @@ class TareaDAO:
             for registro in registros:
                 tarea = Tarea(
                     tarea_asunto=registro[1],
-                    tarea_id=registro[0]
+                    tarea_id=registro[0],
+                    tarea_fecha=registro[2]
                 )
                 tareas.append(tarea)
 
@@ -67,7 +69,7 @@ class TareaDAO:
     def obtener_por_id(tarea_id):
         try:
             sql = """
-                SELECT tarea_id, tarea_asunto
+                SELECT tarea_id, tarea_asunto, tarea_fecha
                 FROM tareas
                 WHERE tarea_id = %s
             """
@@ -83,7 +85,8 @@ class TareaDAO:
             if registro:
                 return Tarea(
                     tarea_asunto=registro[1],
-                    tarea_id=registro[0]
+                    tarea_id=registro[0],
+                    tarea_fecha=registro[2]
                 )
 
             return None

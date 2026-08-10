@@ -1,19 +1,26 @@
 import flet as ft
 import asyncio
 from datetime import datetime
+from decimal import Decimal
 
-from theme import colores
+from frontend.theme import colores
 
-INVENTARIO = [
-    {"codigo": "7501234567890", "nombre": "DEXTROMETORFANO", "presentacion": "600MG", "precio": 56.00},
-    {"codigo": "7501234567891", "nombre": "ACICLOVIR COMPUESTO", "presentacion": "250MG", "precio": 53.00},
-    {"codigo": "7501234567892", "nombre": "JERINGAS 5ML", "presentacion": "PIEZA 2", "precio": 27.00},
-] 
+# IMPORTAR BACKEND
+from backend.dao.medicamento_dao import MedicamentoDAO
+from backend.dao.producto_dao import ProductoDAO
+
+from backend.dao.venta_dao import VentaDAO
+from backend.models.venta import Venta
+
+from backend.services.email_sender import enviar_ticket_por_correo
+
+import uuid
 
 ticket_items = []
 producto_seleccionado = None
 cobro_activo = False
 venta_completada = False
+procesando_cobro = False  # evita que procesar_cobro() se ejecute dos veces en paralelo
 
 def border_all(width, color):
     side = ft.BorderSide(width=width, color=color)
@@ -283,7 +290,9 @@ def main(page: ft.Page, on_salir=None):
             "nombre": producto["nombre"],
             "presentacion": producto["presentacion"],
             "precio": producto["precio"],
-            "cantidad": cantidad
+            "cantidad": cantidad,
+            "id": producto.get("id"),
+            "tipo": producto.get("tipo", "prod")
         })
         actualizar_ticket()
 
@@ -293,9 +302,10 @@ def main(page: ft.Page, on_salir=None):
             monto_recibido_input.value = ""
 
         total_articulos = sum(item["cantidad"] for item in ticket_items)
-        subtotal = sum(item["precio"] * item["cantidad"] for item in ticket_items)
-        impuesto = round(subtotal * 0.16, 2)
-        total = round(subtotal + impuesto, 2)
+        total = sum(item["precio"] * item["cantidad"] for item in ticket_items)
+        subtotal = round(total / 1.16, 2)
+        impuesto = round(total - subtotal, 2)
+        total = round(total, 2)
 
         ticket_body.content.controls.clear()
 
@@ -403,11 +413,16 @@ def main(page: ft.Page, on_salir=None):
         page.update()
 
     def limpiar_ticket():
+
         global producto_seleccionado, cobro_activo, venta_completada
+        nonlocal folio_actual  # folio_actual vive en main(), no es global del módulo
         if cobro_activo:
             page.show_dialog(ft.SnackBar(ft.Text("Finaliza el cobro actual para continuar")))
             page.update()
-            return
+            return  
+        folio_actual = "V-" + str(uuid.uuid4())[:8].upper()
+        ticket_header.content.value = f"TICKET       FOLIO: {folio_actual}"
+        ticket_header.update()
         ticket_items.clear()
         producto_seleccionado = None
         cobro_activo = False
@@ -426,18 +441,42 @@ def main(page: ft.Page, on_salir=None):
 
     def procesar_codigo_barras(codigo):
         if bloqueado_por_cobro():
-            codigo_barras_input.values = ""
+            codigo_barras_input.value = ""
             page.update()
             return
         if codigo:
-            producto = next((p for p in INVENTARIO if p["codigo"] == codigo), None)
-            if producto:
-                nombre_producto_display.value = producto['nombre']
+            # Buscar primero en medicamentos
+            med = MedicamentoDAO.obtener_por_codigo_barras(codigo)
+            if med:
+                producto = {
+                    "codigo": med.med_codBarras,
+                    "nombre": med.med_nombreGen,
+                    "presentacion": med.med_fraccion or "",
+                    "precio": float(med.med_precio),
+                    "tipo": "med",
+                    "id": med.med_id
+                }
+                nombre_producto_display.value = producto["nombre"]
                 agregar_al_ticket(producto)
                 page.show_dialog(ft.SnackBar(ft.Text(f"✓ {producto['nombre']} agregado")))
             else:
-                nombre_producto_display.value = ""
-                page.show_dialog(ft.SnackBar(ft.Text("Producto no encontrado")))
+                # Buscar en productos
+                prod = ProductoDAO.obtener_por_codigo_barras(codigo)
+                if prod:
+                    producto = {
+                        "codigo": prod.prod_codBarras,
+                        "nombre": prod.prod_nombre,
+                        "presentacion": prod.prod_fraccion or "",
+                        "precio": float(prod.prod_precio),
+                        "tipo": "prod",
+                        "id": prod.prod_id
+                    }
+                    nombre_producto_display.value = producto["nombre"]
+                    agregar_al_ticket(producto)
+                    page.show_dialog(ft.SnackBar(ft.Text(f"✓ {producto['nombre']} agregado")))
+                else:
+                    nombre_producto_display.value = ""
+                    page.show_dialog(ft.SnackBar(ft.Text("Producto no encontrado")))
             codigo_barras_input.value = ""
             page.update()
 
@@ -474,7 +513,7 @@ def main(page: ft.Page, on_salir=None):
             ink=not bloqueado,
             on_click=None if bloqueado else (lambda e: seleccionar_producto(codigo)),
         )
-    def activar_monto_recibido():
+    async def activar_monto_recibido(e=None):
         global cobro_activo
         if venta_completada:
             page.show_dialog(ft.SnackBar(ft.Text("Haz clic en 'Nuevo' para iniciar otro ticket")))
@@ -493,60 +532,129 @@ def main(page: ft.Page, on_salir=None):
         monto_recibido_input.value = ""
         cobro_activo = True
         actualizar_ticket()
-        monto_recibido_input.focus()
+
+        await monto_recibido_input.focus()
         page.update()
         page.show_dialog(ft.SnackBar(ft.Text("Ingresa el monto recibido")))
         page.update()
 
     def procesar_cobro():
-        """Procesa el cobro y calcula el cambio"""
-        global cobro_activo, venta_completada
-        if not ticket_items:
-            page.show_dialog(ft.SnackBar(ft.Text("No hay productos para cobrar")))
-            page.update()
-            return
-        
-        # Calcular total
-        total = round(sum(item["precio"] * item["cantidad"] for item in ticket_items) * 1.16, 2)
+        global cobro_activo, venta_completada, procesando_cobro
+        nonlocal folio_actual  # misma variable que usa main()/limpiar_ticket(), no un global del módulo
 
-        valor = monto_recibido_input.value.strip()
-        if not valor:
-            page.show_dialog(ft.SnackBar(ft.Text("Ingresa un monto válido")))
-            page.update()
+        # --- Bloqueo anti doble-envío ---------------------------------
+        # Cobrar puede dispararse por 3 caminos distintos (botón "Cobrar",
+        # Enter en el campo de monto, Enter físico/numpad). Si dos de esos
+        # eventos llegan casi al mismo tiempo, sin esta bandera se ejecutaría
+        # procesar_cobro() dos veces con el MISMO folio_actual y el segundo
+        # INSERT chocaría con la restricción de unicidad de venta_folio.
+        if procesando_cobro:
             return
-        
+        procesando_cobro = True
+
         try:
-            valor_limpio = valor.replace("$", "").replace(",", "").strip()
-            monto_recibido = float(valor_limpio)
-        except ValueError:
-            page.show_dialog(ft.SnackBar(ft.Text("Ingresa un monto válido")))
-            page.update()
-            return
-        
-        if monto_recibido < total:
-            page.show_dialog(ft.SnackBar(ft.Text(f"Monto insuficiente. Total: ${total:.2f}")))
-            page.update()
-            return
-        
-        cambio = monto_recibido - total
+            if not ticket_items:
+                page.show_dialog(ft.SnackBar(ft.Text("No hay productos para cobrar")))
+                page.update()
+                return
 
-        cobro_activo = False
-        venta_completada = True 
-        actualizar_ticket()
+            total = round(sum(item["precio"] * item["cantidad"] for item in ticket_items), 2)
 
-        
-        # Actualizar el ticket con el monto recibido y cambio
-        actualizar_ticket_con_pago(monto_recibido, cambio)
-        
-        # Deshabilitar el campo
-        monto_recibido_input.disabled = True
-        monto_recibido_input.value = ""
-        email_input.disabled = False
-        enviar_email_btn.disabled = False
-        page.update()
-        
-        page.show_dialog(ft.SnackBar(ft.Text(f"¡Cobro exitoso! Cambio: ${cambio:.2f}")))
-        page.update()
+            valor = monto_recibido_input.value.strip()
+            if not valor:
+                page.show_dialog(ft.SnackBar(ft.Text("Ingresa un monto válido")))
+                page.update()
+                return
+
+            try:
+                valor_limpio = valor.replace("$", "").replace(",", "").strip()
+                monto_recibido = float(valor_limpio)
+            except ValueError:
+                page.show_dialog(ft.SnackBar(ft.Text("Ingresa un monto válido")))
+                page.update()
+                return
+
+            if monto_recibido < total:
+                page.show_dialog(ft.SnackBar(ft.Text(f"Monto insuficiente. Total: ${total:.2f}")))
+                page.update()
+                return
+
+            cambio = monto_recibido - total
+
+            # Preparar datos de la venta
+            carrito_bd = [{
+                "producto_id": item["id"],
+                "tipo": item["tipo"],
+                "cantidad": item["cantidad"],
+                "precio_unitario": Decimal(str(item["precio"])),
+                "subtotal": Decimal(str(item["precio"] * item["cantidad"])),
+                "nombre": item["nombre"]
+            } for item in ticket_items]
+
+            total_bd = Decimal(str(total))
+            subtotal_sin_iva = round(total_bd / Decimal("1.16"), 2)
+            iva_bd = round(total_bd - subtotal_sin_iva, 2)
+
+            # --- Guardar venta en BD, con un reintento si el folio choca ---
+            intentos_restantes = 2
+            guardado_ok = False
+            ultimo_error = None
+
+            while intentos_restantes > 0 and not guardado_ok:
+                intentos_restantes -= 1
+                venta_obj = Venta(
+                    venta_folio=folio_actual,
+                    venta_fecha=None,
+                    venta_usuario_id=None,
+                    venta_subtotal=subtotal_sin_iva,
+                    venta_iva=iva_bd,
+                    venta_total=total_bd,
+                    venta_pago=Decimal(str(monto_recibido)),
+                    venta_cambio=Decimal(str(cambio))
+                )
+                try:
+                    VentaDAO.crear_venta(venta_obj, carrito_bd)
+                    guardado_ok = True
+                except Exception as ex:
+                    ultimo_error = ex
+                    mensaje = str(ex).lower()
+                    es_folio_duplicado = "venta_folio" in mensaje or "llave duplicada" in mensaje or "unique" in mensaje
+                    if es_folio_duplicado and intentos_restantes > 0:
+                        # El folio ya existía en la BD: generamos uno nuevo y
+                        # reintentamos una sola vez en lugar de perder la venta.
+                        folio_actual = "V-" + str(uuid.uuid4())[:8].upper()
+                        ticket_header.content.value = f"TICKET       FOLIO: {folio_actual}"
+                        ticket_header.update()
+                    else:
+                        break  # error real (no de folio) o ya sin reintentos
+
+            if not guardado_ok:
+                # No se guardó: NO marcamos la venta como completada ni
+                # avisamos "éxito". El usuario puede volver a intentar.
+                print(f"Error al guardar venta: {ultimo_error}")
+                page.show_dialog(
+                    ft.SnackBar(ft.Text("No se pudo guardar la venta. Intenta cobrar de nuevo."))
+                )
+                page.update()
+                return
+
+            # Solo si el INSERT fue exitoso marcamos la venta como completada
+            cobro_activo = False
+            venta_completada = True
+            actualizar_ticket()
+            actualizar_ticket_con_pago(monto_recibido, cambio)
+
+            monto_recibido_input.disabled = True
+            monto_recibido_input.value = ""
+            email_input.disabled = False
+            enviar_email_btn.disabled = False
+            page.update()
+
+            page.show_dialog(ft.SnackBar(ft.Text(f"¡Cobro exitoso! Cambio: ${cambio:.2f}")))
+            page.update()
+
+        finally:
+            procesando_cobro = False
 
     def digito_presionado(valor):
         """Inserta un dígito/punto o borra el último carácter en el campo actualmente
@@ -662,39 +770,41 @@ def main(page: ft.Page, on_salir=None):
         
         # Construir el contenido del ticket
         total_articulos = sum(item["cantidad"] for item in ticket_items)
-        subtotal = sum(item["precio"] * item["cantidad"] for item in ticket_items)
-        impuesto = round(subtotal * 0.16, 2)
-        total = round(subtotal + impuesto, 2)
-        
-        ticket_text = f"""
-        ==========================================
-        TICKET DE COMPRA
-        ==========================================
-        Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
-        Folio: 23384
-        ------------------------------------------
-        """
-        
+        total = sum(item["precio"] * item["cantidad"] for item in ticket_items)
+        subtotal = round(total / 1.16, 2)
+        impuesto = round(total - subtotal, 2)
+        total = round(total, 2)
+
+        ticket_text = "=================================\n"
+        ticket_text += "        TICKET DE COMPRA\n"
+        ticket_text += "================================\n"
+        ticket_text += f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
+        ticket_text += f"Folio: {folio_actual}\n"
+        ticket_text += "--------------------------------\n"
+
         for item in ticket_items:
-            ticket_text += f"{item['cantidad']} x {item['nombre']} ({item['presentacion']}) - ${item['precio']:.2f} c/u = ${item['precio'] * item['cantidad']:.2f}\n"
-        
-        ticket_text += f"""
-        ------------------------------------------
-        Artículos: {total_articulos}
-        Subtotal: ${subtotal:.2f}
-        Impuesto: ${impuesto:.2f}
-        TOTAL: ${total:.2f}
-        ==========================================
-        Gracias por su compra
-        PHARMA STOCK
-        FARMACIA
-        """
+            ticket_text += f"{item['cantidad']} x {item['nombre']}\n"
+            ticket_text += f"   ({item['presentacion']}) ${item['precio']:.2f} c/u\n"
+            ticket_text += f"   Subtotal: ${item['precio'] * item['cantidad']:.2f}\n"
+
+        ticket_text += "--------------------------------\n"
+        ticket_text += f"Articulos: {total_articulos}\n"
+        ticket_text += f"Subtotal:  ${subtotal:.2f}\n"
+        ticket_text += f"Impuesto:  ${impuesto:.2f}\n"
+        ticket_text += f"TOTAL:     ${total:.2f}\n"
+        ticket_text += "================================\n"
+        ticket_text += "       Gracias por su compra\n"
+        ticket_text += "         PHARMA STOCK\n"
+        ticket_text += "           FARMACIA\n"
+        ticket_text += "================================\n"
         
         # Mostrar en consola para depuración
         print(ticket_text)
         
         # Aquí iría la lógica real de envío de correo
         # Notificación en la parte inferior confirmando el envío
+        folio = ticket_header.content.value.split("FOLIO:")[-1].strip()
+        enviar_ticket_por_correo(email, ticket_text, folio)
         page.show_dialog(ft.SnackBar(ft.Text(f"✓ Ticket enviado correctamente a {email}")))
         
         # Limpiar campo después de enviar
@@ -783,13 +893,15 @@ def main(page: ft.Page, on_salir=None):
     # PANEL IZQUIERDO: TICKET
     # ---------------------------------------------------------------
 
+    folio_actual = "V-" + str(uuid.uuid4())[:8].upper()
+
     ticket_header = ft.Container(
-        content=ft.Text("TICKET       FOLIO: 23384",
-                         color="black", size=14, weight=ft.FontWeight.BOLD),
-        bgcolor="#EDF5FC",
-        padding=ft.Padding(left=10, top=6, right=10, bottom=6),
-        border_radius=14,
-    )
+    content=ft.Text(f"TICKET       FOLIO: {folio_actual}",
+                     color="black", size=14, weight=ft.FontWeight.BOLD),
+    bgcolor="#EDF5FC",
+    padding=ft.Padding(left=10, top=6, right=10, bottom=6),
+    border_radius=14,
+)
 
     ticket_panel = ft.Container(
         content=ft.Column([ticket_header, ticket_body], spacing=0, expand=True),
@@ -960,7 +1072,7 @@ def main(page: ft.Page, on_salir=None):
             height=55,
             border_radius=14,
         ),
-        funcion_btn("Cobrar", None, bgcolor="#4F7FE0", color="white", expand=1, on_click=lambda e: activar_monto_recibido()),
+        funcion_btn("Cobrar", None, bgcolor="#4F7FE0", color="white", expand=1, on_click=activar_monto_recibido),
     ],
     spacing=6,
 ),
