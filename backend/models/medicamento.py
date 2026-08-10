@@ -3,7 +3,8 @@ class Medicamento:
     def __init__(self, med_codBarras, med_nombreGen, med_nombreComer, med_lab,
                  med_origen, med_concentracion, med_formaFarma, med_viaAdmi,
                  med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia,
-                 prov_id, med_id = None, cat_id = None, med_imagen = None):
+                 prov_id, med_id = None, cat_id = None, med_imagen = None,
+                 med_tipoMedicamento = None):
 
         self.med_id = med_id
         self.cat_id = cat_id
@@ -22,6 +23,7 @@ class Medicamento:
         self.med_existencia = med_existencia
         self.prov_id = prov_id
         self.med_imagen = med_imagen
+        self.med_tipoMedicamento = med_tipoMedicamento
 
     def __str__(self):
         return (f"Medicamento(id={self.med_id}, "

@@ -63,6 +63,7 @@ def _medicamento_a_dict(med):
         "fraccion": med.med_fraccion,
         "marca": None,
         "imagen": med.med_imagen,
+        "tipo_medicamento": med.med_tipoMedicamento,
     }
 
 
@@ -113,6 +114,7 @@ def _crear_producto_bd(datos):
             prov_id=datos["prov_id"],
             cat_id=CAT_ID_MEDICAMENTOS,
             med_imagen=datos.get("imagen"),
+            med_tipoMedicamento=datos.get("tipo_medicamento"),
         )
         creado = MedicamentoDAO.crear(med)
         return _medicamento_a_dict(creado) if creado else None
@@ -157,6 +159,7 @@ def _actualizar_producto_bd(datos):
             prov_id=datos["prov_id"],
             cat_id=datos.get("cat_id") or CAT_ID_MEDICAMENTOS,
             med_imagen=datos.get("imagen"),
+            med_tipoMedicamento=datos.get("tipo_medicamento"),
         )
         return MedicamentoDAO.actualizar(med)
 
@@ -1037,6 +1040,7 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
             "marca": dd_add_marca.value,
             "fraccion": dd_add_fraccion.value,
             "imagen": imagen_add_seleccionada["path"],
+            "tipo_medicamento": dd_add_tipo_med.value if dd_add_tipo.value == "Medicamento" else None,
         }
 
         nuevo_producto = _crear_producto_bd(datos_nuevo_producto)
@@ -1455,6 +1459,7 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
             "marca": dd_edit_marca.value,
             "fraccion": dd_edit_fraccion.value,
             "imagen": imagen_edit_seleccionada["path"],
+            "tipo_medicamento": dd_edit_tipo_med.value if prod.get("tipo") == "Medicamento" else None,
         }
 
         datos_editados["tipo"] = prod.get("tipo")
@@ -1573,7 +1578,7 @@ def vista_inventario(page: ft.Page, modulo_recordatorios=None, on_inventario_act
         err_edit_nombre.visible = False
         dd_edit_tipo.value = prod.get("tipo", "Medicamento")
         dd_edit_tipo.disabled = True  # no se puede migrar entre medicamentos/productos al editar
-        dd_edit_tipo_med.value = prod.get("categoria", "Analgésico")
+        dd_edit_tipo_med.value = prod.get("tipo_medicamento") or "Analgésico"
         tf_edit_caducidad.value = prod.get("caducidad", "") if prod.get("caducidad") != "N/A" else ""
         err_edit_caducidad.visible = False
         tf_edit_lote.value = prod.get("lote", "#4505050")

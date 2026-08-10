@@ -12,6 +12,9 @@ from frontend.state import PROVEEDORES_GLOBALES, PRODUCTOS_GLOBALES, ESTADO_UI
 from backend.dao.proveedor_dao import ProveedorDAO
 from backend.models.proveedor import Proveedor
 
+from backend.dao.producto_dao import ProductoDAO
+from backend.dao.medicamento_dao import MedicamentoDAO
+
 PROVEEDORES_POR_PAGINA = 7
 MAX_PAGINAS_VISIBLES = 5
 ANCHO_PAGINADOR_NUMEROS = 480
@@ -607,7 +610,8 @@ def vista_proveedores(page: ft.Page):
                 "prov_id": p.prov_id,
                 "nombre": p.prov_nombre,
                 "tipo": p.prov_tipo,
-                "productos": 0,
+                "productos": ProductoDAO.contar_por_proveedor(p.prov_id)
+                            + MedicamentoDAO.contar_por_proveedor(p.prov_id),
                 "contacto": p.prov_telefono,
                 "correo": p.prov_correo,
                 "cp": str(p.prov_codigoPostal),
