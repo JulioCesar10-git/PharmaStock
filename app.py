@@ -35,6 +35,7 @@ from decimal import Decimal, InvalidOperation
 
 # FRONTEND
 import flet as ft
+from main import main_window
 
 # FUNCIONES DE ADMINISTRADOR
 def registrar_usuario():
@@ -849,12 +850,12 @@ def menu_admin(usuario_actual):
         case 8:
             ver_corte_de_caja(usuario_actual)
 
-def main():
-    user = login()
+# def main():
+#     user = login()
 
-    if user.usuario_cargo == 'admin':
-        menu_admin(user)
+#     if user.usuario_cargo == 'admin':
+#         menu_admin(user)
             
+# main()
 
-main()
-
+ft.app(target=main_window, assets_dir="frontend/assets")
