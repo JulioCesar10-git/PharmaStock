@@ -92,6 +92,75 @@ def generar_reporte_productos_pdf(mes, anio):
     doc.build(contenido)
     print(f"PDF generado: {nombre_archivo}")
 
+def generar_reporte_ventas_pdf(mes, anio):
+    """
+    Genera el PDF del reporte de VENTAS de un mes (el que se ve en la
+    pantalla de Reportes: total en $, piezas de productos/medicamentos,
+    detalle por artículo y proveedores involucrados).
+
+    Usa CpmDAO.generar_reporte_ventas(), que calcula el total en $ a
+    partir de ventas/detalle_ventas (a diferencia de
+    CpmDAO.obtener_reporte(), que es el CPM de reabastecimiento).
+
+    Devuelve la ruta del PDF generado, o None si no hay datos.
+    """
+    resumen = CpmDAO.generar_reporte_ventas(mes, anio)
+    productos_lista = resumen.get("productos_lista", [])
+    proveedores_lista = resumen.get("proveedores_lista", [])
+
+    if not productos_lista:
+        print("No hay datos de ventas para generar el reporte")
+        return None
+
+    os.makedirs("reportes", exist_ok=True)
+    nombre_archivo = f"reportes/reporte_ventas_{mes}_{anio}.pdf"
+
+    doc = SimpleDocTemplate(nombre_archivo, pagesize=A4)
+    estilos = getSampleStyleSheet()
+    contenido = []
+
+    contenido.append(Paragraph(f"Reporte de Ventas - {mes}/{anio}", estilos["Title"]))
+    contenido.append(Spacer(1, 12))
+
+    resumen_txt = (
+        f"Piezas de productos: {resumen['productos']}  |  "
+        f"Piezas de medicamentos: {resumen['medicamentos']}  |  "
+        f"Total: ${resumen['total']:.2f}"
+    )
+    contenido.append(Paragraph(resumen_txt, estilos["Normal"]))
+    contenido.append(Spacer(1, 18))
+
+    contenido.append(Paragraph("Productos y medicamentos vendidos", estilos["Heading2"]))
+    contenido.append(Spacer(1, 6))
+    encabezados_prod = ["Tipo", "Nombre", "Piezas", "Precio unitario", "Subtotal"]
+    filas_prod = [encabezados_prod]
+    for item in productos_lista:
+        prod = item.get("producto", {})
+        precio = float(prod.get("precio", 0.0) or 0.0)
+        piezas = int(item.get("piezas", 0) or 0)
+        filas_prod.append([
+            prod.get("tipo", ""),
+            prod.get("nombre", ""),
+            str(piezas),
+            f"${precio:.2f}",
+            f"${precio * piezas:.2f}",
+        ])
+    contenido.append(_construir_tabla(filas_prod))
+
+    if proveedores_lista:
+        contenido.append(Spacer(1, 20))
+        contenido.append(Paragraph("Proveedores involucrados", estilos["Heading2"]))
+        contenido.append(Spacer(1, 6))
+        encabezados_prov = ["Nombre", "Tipo"]
+        filas_prov = [encabezados_prov]
+        for prov in proveedores_lista:
+            filas_prov.append([prov.get("nombre", ""), prov.get("tipo", "")])
+        contenido.append(_construir_tabla(filas_prov))
+
+    doc.build(contenido)
+    print(f"PDF generado: {nombre_archivo}")
+    return nombre_archivo
+
 def generar_reporte_cpm_pdf(mes, anio):
     datos = CpmDAO.obtener_reporte(mes, anio)
 

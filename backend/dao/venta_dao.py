@@ -6,8 +6,8 @@ from backend.models.detalle_venta import DetalleVenta
 class VentaDAO:
 
     def crear_venta(venta: Venta, carrito: list):
+        conn = Conexion.obtener_conexion()
         try:
-            conn = Conexion.obtener_conexion()
             conn.rollback()
             cursor = conn.cursor()
 
@@ -71,7 +71,13 @@ class VentaDAO:
             conn.rollback()
             print("Error al registrar la venta")
             print(e)
-            return None
+            # Antes se devolvía None aquí, lo que hacía que el error se
+            # perdiera silenciosamente para quien llama a crear_venta()
+            # (por ejemplo punto_venta.py), que nunca se enteraba de que
+            # la venta NO se guardó. Al re-lanzar la excepción, el llamador
+            # puede detectar el fallo real (p. ej. folio duplicado) y
+            # reaccionar en vez de mostrar "¡Cobro exitoso!" por error.
+            raise
 
     @staticmethod
     def corte_de_caja():

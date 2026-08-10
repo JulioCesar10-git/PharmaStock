@@ -1,12 +1,19 @@
 import math
 import asyncio
+import os
+import sys
+import subprocess
+from pathlib import Path
 from datetime import datetime
 import calendar
 import copy
 import flet as ft
 
 from frontend.theme import colores
-from frontend.state import PRODUCTOS_GLOBALES, PROVEEDORES_GLOBALES, ESTADO_UI
+from frontend.state import PROVEEDORES_GLOBALES, ESTADO_UI
+
+from backend.dao.cpm_dao import CpmDAO
+from backend.services.reporte_pdf import generar_reporte_ventas_pdf
 
 REPORTES_POR_PAGINA = 7
 MAX_PAGINAS_VISIBLES = 5
@@ -85,47 +92,42 @@ MESES_NOMBRE = [
     "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE",
 ]
 
-def _generar_reportes_ejemplo():
-    # Un reporte de ejemplo por cada mes de 2026 y de 2025 (24 en total),
-    # del más reciente al más antiguo.
+def _generar_reportes_desde_backend():
+    # Un reporte por cada mes/año que tenga ventas registradas en la BD,
+    # del más reciente al más antiguo. El total en $, las piezas de
+    # productos/medicamentos y el detalle por artículo y proveedor se
+    # calculan en CpmDAO.generar_reporte_ventas() a partir de
+    # ventas/detalle_ventas.
     reportes = []
-    no = 1
-    for anio in (2026, 2025):
-        for mes in range(12, 0, -1):
-            if anio == 2026 and mes in (9, 10, 11, 12):
-                continue
-            ultimo_dia = calendar.monthrange(anio, mes)[1]
-            nombre_mes = MESES_NOMBRE[mes - 1]
-            fecha_str = f"{MESES_ABREV[mes - 1]} {ultimo_dia}, {anio}"
+    meses_con_ventas = CpmDAO.obtener_meses_con_ventas()
 
-            productos_lista = [{"producto": p, "piezas": 5} for p in PRODUCTOS_GLOBALES]
-            productos_count = sum(
-                item["piezas"] for item in productos_lista if item["producto"].get("tipo") != "Medicamento"
-            )
-            medicamentos_count = sum(
-                item["piezas"] for item in productos_lista if item["producto"].get("tipo") == "Medicamento"
-            )
-            total_monto = sum(item["piezas"] * item["producto"].get("precio", 0.0) for item in productos_lista)
+    for no, periodo in enumerate(meses_con_ventas, start=1):
+        anio = periodo["anio"]
+        mes = periodo["mes"]
+        resumen = CpmDAO.generar_reporte_ventas(mes, anio)
 
-            reportes.append(
-                {
-                    "no": no,
-                    "nombre": f"VENTAS_{nombre_mes}_{anio}",
-                    "fecha": fecha_str,
-                    "productos": productos_count,
-                    "medicamentos": medicamentos_count,
-                    "total": total_monto,
-                    "productos_lista": productos_lista,
-                    "proveedores_lista": _proveedores_validos_sin_duplicados(copy.deepcopy(PROVEEDORES_GLOBALES)),
-                }
-            )
-            no += 1
+        ultimo_dia = calendar.monthrange(anio, mes)[1]
+        nombre_mes = MESES_NOMBRE[mes - 1]
+        fecha_str = f"{MESES_ABREV[mes - 1]} {ultimo_dia}, {anio}"
+
+        reportes.append(
+            {
+                "no": no,
+                "nombre": f"VENTAS_{nombre_mes}_{anio}",
+                "fecha": fecha_str,
+                "productos": resumen["productos"],
+                "medicamentos": resumen["medicamentos"],
+                "total": resumen["total"],
+                "productos_lista": resumen["productos_lista"],
+                "proveedores_lista": _proveedores_validos_sin_duplicados(resumen["proveedores_lista"]),
+            }
+        )
     return reportes
 
-def _obtener_reportes():
+def _obtener_reportes(forzar_recarga=False):
     global _REPORTES_GLOBALES
-    if _REPORTES_GLOBALES is None:
-        _REPORTES_GLOBALES = _generar_reportes_ejemplo()
+    if _REPORTES_GLOBALES is None or forzar_recarga:
+        _REPORTES_GLOBALES = _generar_reportes_desde_backend()
     return _REPORTES_GLOBALES
 
 # --- Suma el "total" de los reportes de ventas de cada mes de un año dado ---
@@ -381,12 +383,41 @@ def _construir_vista_editar_reporte(page: ft.Page, reporte, al_regresar_callback
         page.update()
 
     def exportar_formato(formato):
-        def manejador(e):
+        async def manejador(e):
             cerrar_menu_exportar()
-            snack = ft.SnackBar(
-                content=ft.Text(f"Exportando {reporte['nombre']} como {formato}...", color=ft.Colors.WHITE),
-                bgcolor="#1565C0",
-            )
+
+            if formato == "PDF":
+                try:
+                    ruta = generar_reporte_ventas_pdf(m_num, a_num)
+                except Exception as ex:
+                    ruta = None
+                    print("Error al generar PDF del reporte:", ex)
+
+                if ruta:
+                    ruta_abs = os.path.abspath(ruta)
+                    mensaje = f"PDF generado: {ruta_abs}"
+                    color_snack = "#2E7D32"
+                    try:
+                        await page.launch_url(Path(ruta_abs).as_uri())
+                    except Exception as ex:
+                        print("launch_url falló, probando abrir con el SO:", ex)
+                        try:
+                            if os.name == "nt":
+                                os.startfile(ruta_abs)
+                            elif sys.platform == "darwin":
+                                subprocess.run(["open", ruta_abs], check=True)
+                            else:
+                                subprocess.run(["xdg-open", ruta_abs], check=True)
+                        except Exception as ex2:
+                            print("No se pudo abrir el PDF automáticamente:", ex2)
+                else:
+                    mensaje = "No se pudo generar el PDF (sin datos de ventas para este mes)"
+                    color_snack = "#C62828"
+            else:
+                mensaje = f"Exportar a {formato} aún no está conectado al backend"
+                color_snack = "#1565C0"
+
+            snack = ft.SnackBar(content=ft.Text(mensaje, color=ft.Colors.WHITE), bgcolor=color_snack)
             page.overlay.append(snack)
             snack.open = True
             page.update()
@@ -481,7 +512,6 @@ def _construir_vista_editar_reporte(page: ft.Page, reporte, al_regresar_callback
         escala_hover=1.015,
     )
 
-    # --- Valida y guarda los cambios del reporte editado ---
     def accion_guardar_cambios(e):
 
         reporte["productos_lista"] = productos_seleccionados
@@ -918,7 +948,6 @@ def vista_reportes(page: ft.Page):
         filtro_anio_actual["anio"] = None
         aplicar_filtros()
 
-    # --- Elimina el reporte de las listas global y filtrada ---
     def eliminar_reporte_confirmado(rep):
         reportes_ejemplo.remove(rep)
         if rep in reportes_filtrados:

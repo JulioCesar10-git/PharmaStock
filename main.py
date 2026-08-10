@@ -1,6 +1,7 @@
 import flet as ft
 from datetime import datetime
 
+from frontend import punto_venta
 from frontend.theme import colores
 from frontend.state import ESTADO_UI
 from frontend.navegacion import nav_item, actualizar_avisos_nav
@@ -146,7 +147,6 @@ def main_window(page: ft.Page):
             modal_confirmacion.open = False
             page.controls.clear()
             page.add(vista_login(page, on_login_exitoso=entrar_a_la_app))
-
             snack_sesion_cerrada = ft.SnackBar(
                 content=ft.Text("Has cerrado sesión con éxito"),
                 bgcolor=ft.Colors.GREEN_600,
@@ -224,6 +224,9 @@ def main_window(page: ft.Page):
     ORDEN_SECCIONES_PRINCIPALES = ["General", "Inventario", "Empleados", "Reportes", "Proveedores"]
     ALTO_ITEM_NAV = 48
     ESPACIO_ITEM_NAV = 8
+
+    estado_navegacion = {"seccion_actual": "General"}
+    usuario_sesion = {"usuario": None}
 
     def construir_interfaz():
         # --- Construye/reconstruye toda la interfaz (se llama al iniciar y al cambiar tema) ---
@@ -324,7 +327,7 @@ def main_window(page: ft.Page):
                     ft.Text(key_clickeado, size=24, weight=ft.FontWeight.BOLD, color=c["input_bg"])
                 ]
             elif key_clickeado == "Ajustes":
-                area_dinamica.content = vista_ajustes(page, construir_interfaz)
+                area_dinamica.content = vista_ajustes(page, construir_interfaz, usuario_sesion["usuario"])
                 titulo_seccion_text.controls = [
                     ft.Text(key_clickeado, size=24, weight=ft.FontWeight.BOLD, color=c["input_bg"])
                 ]
@@ -474,7 +477,7 @@ def main_window(page: ft.Page):
         elif estado_navegacion["seccion_actual"] == "Proveedores":
             contenido_inicial = vista_proveedores(page)
         elif estado_navegacion["seccion_actual"] == "Ajustes":
-            contenido_inicial = vista_ajustes(page, construir_interfaz)
+            contenido_inicial = vista_ajustes(page, construir_interfaz, usuario_sesion["usuario"])
         else:
             contenido_inicial = vista_general(page, fecha_activa, modulo_recordatorios, cambiar_seccion)
 
@@ -493,11 +496,10 @@ def main_window(page: ft.Page):
         page.add(ft.Row([menu_lateral, contenido_principal], expand=True, spacing=0))
         page.update()
 
-    def entrar_a_la_app(usuario, password):
-        # El login ya fue validado en login_view.py contra los datos de Ajustes
+    def entrar_a_la_app(usuario):
+        usuario_sesion["usuario"] = usuario
 
-        # --- Acceso directo al Punto de Venta ---
-        if usuario == "isaac@gmail.com" and password == "pharmastock":
+        if usuario.usuario_cargo in ("tendero", "bodeguero"):
             def volver_al_login():
                 page.controls.clear()
                 page.add(vista_login(page, on_login_exitoso=entrar_a_la_app))
@@ -508,11 +510,11 @@ def main_window(page: ft.Page):
             page.update()
             return
 
+        # Admin va a General
         estado_navegacion["seccion_actual"] = "General"
         page.controls.clear()
         construir_interfaz()
 
-    # --- Se muestra el login como pantalla inicial ---
     page.controls.clear()
     page.add(vista_login(page, on_login_exitoso=entrar_a_la_app))
     page.update()

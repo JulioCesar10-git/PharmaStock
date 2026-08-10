@@ -1,6 +1,10 @@
+from datetime import datetime
+
 import flet as ft
 
 from frontend.theme import colores
+from backend.dao.tarea_dao import TareaDAO
+from backend.models.tarea import Tarea
 
 # --- Aplica el mismo efecto hover del botón "Agregar tarea"
 #     (zoom + sombra más marcada, sin marco) a un Container-botón ---
@@ -26,7 +30,32 @@ def _aplicar_hover_boton(boton, sombra_normal, sombra_hover, escala_hover=1.06):
     boton.on_hover = _al_pasar_mouse
 
 def crear_modulo_recordatorios(page: ft.Page, fecha_activa: dict):
-    lista_tareas_data = []
+    # --- "dia/mes/año" (sin ceros a la izquierda, igual que fecha_activa) <-> date ---
+    def _fecha_str_a_date(fecha_str):
+        try:
+            dia_str, mes_str, año_str = fecha_str.split("/")
+            return datetime(int(año_str), int(mes_str), int(dia_str)).date()
+        except (ValueError, AttributeError):
+            return None
+
+    def _date_a_fecha_str(fecha_date):
+        if not fecha_date:
+            return ""
+        return f"{fecha_date.day}/{fecha_date.month}/{fecha_date.year}"
+
+    # --- Carga inicial de tareas guardadas en la BD ---
+    def _cargar_tareas_desde_bd():
+        tareas_bd = TareaDAO.obtener_todos()
+        return [
+            {
+                "id": t.tarea_id,
+                "titulo": t.tarea_asunto,
+                "fecha": _date_a_fecha_str(t.tarea_fecha),
+            }
+            for t in tareas_bd
+        ]
+
+    lista_tareas_data = _cargar_tareas_desde_bd()
     columna_tareas_list = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
     # --- Lista de avisos (usada por la campanita de notificaciones) ---
@@ -60,6 +89,10 @@ def crear_modulo_recordatorios(page: ft.Page, fecha_activa: dict):
         # --- Diálogo de confirmación al marcar una tarea como completada ---
         def confirmar_eliminacion(e, tarea):
             def borrar_y_cerrar(e):
+                if tarea.get("id") is not None:
+                    if not TareaDAO.eliminar(tarea["id"]):
+                        print("No se pudo eliminar la tarea de la base de datos:", tarea["id"])
+
                 lista_tareas_data.remove(tarea)
                 modal_confirmacion.open = False
                 renderizar_tareas()
@@ -204,9 +237,25 @@ def crear_modulo_recordatorios(page: ft.Page, fecha_activa: dict):
         def guardar_recordatorio(e):
             if tf_titulo_tarea.value and tf_titulo_tarea.value.strip():
                 fecha_str = f"{fecha_activa['dia']}/{fecha_activa['mes']}/{fecha_activa['año']}"
-                lista_tareas_data.append({"titulo": tf_titulo_tarea.value.strip(), "fecha": fecha_str})
+                titulo = tf_titulo_tarea.value.strip()
+
+                tarea_nueva = Tarea(tarea_asunto=titulo, tarea_fecha=_fecha_str_a_date(fecha_str))
+                tarea_guardada = TareaDAO.crear(tarea_nueva)
+
+                if tarea_guardada is None:
+                    lbl_error_modal.value = "No se pudo guardar la tarea en la base de datos"
+                    lbl_error_modal.visible = True
+                    page.update()
+                    return
+
+                lista_tareas_data.append({
+                    "id": tarea_guardada.tarea_id,
+                    "titulo": titulo,
+                    "fecha": fecha_str,
+                })
 
                 tf_titulo_tarea.value = ""
+                lbl_error_modal.value = "Es necesario rellenar el campo de asunto"
                 lbl_error_modal.visible = False
                 modal_recordatorio.open = False
                 renderizar_tareas()
@@ -218,6 +267,7 @@ def crear_modulo_recordatorios(page: ft.Page, fecha_activa: dict):
 
                 page.update()
             else:
+                lbl_error_modal.value = "Es necesario rellenar el campo de asunto"
                 lbl_error_modal.visible = True
                 page.update()
 
