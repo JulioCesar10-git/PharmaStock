@@ -10,8 +10,8 @@ class MedicamentoDAO:
 
                 INSERT INTO medicamentos (med_codBarras, med_nombreGen, med_nombreComer,
                 med_lab, med_origen, med_concentracion, med_formaFarma, med_viaAdmi,
-                med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id, cat_id, med_imagen)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id, cat_id, med_imagen, med_tipoMedicamento)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING med_id
 
             """
@@ -24,7 +24,7 @@ class MedicamentoDAO:
                 med.med_lab, med.med_origen, med.med_concentracion,
                 med.med_formaFarma, med.med_viaAdmi, med.med_lote,
                 med.med_fechaCad, med.med_fraccion, med.med_precio,
-                med.med_existencia, med.prov_id, med.cat_id, med.med_imagen
+                med.med_existencia, med.prov_id, med.cat_id, med.med_imagen, med.med_tipoMedicamento
 
             ))
             med.med_id = cur.fetchone()[0]
@@ -44,7 +44,7 @@ class MedicamentoDAO:
 
                 SELECT med_id, med_codBarras, med_nombreGen, med_nombreComer,
                 med_lab, med_origen, med_concentracion, med_formaFarma, med_viaAdmi,
-                med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id, cat_id, med_imagen
+                med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id, cat_id, med_imagen, med_tipoMedicamento
                 FROM medicamentos
 
             """
@@ -59,7 +59,8 @@ class MedicamentoDAO:
                 med_nombreComer=f[3], med_lab=f[4], med_origen=f[5],
                 med_concentracion=f[6], med_formaFarma=f[7], med_viaAdmi=f[8],
                 med_lote=f[9], med_fechaCad=f[10], med_fraccion=f[11],
-                med_precio=f[12], med_existencia=f[13], prov_id=f[14], cat_id=f[15], med_imagen=f[16]
+                med_precio=f[12], med_existencia=f[13], prov_id=f[14], cat_id=f[15], med_imagen=f[16],
+                med_tipoMedicamento=f[17]
             ) for f in filas]
         
         except Exception as e:
@@ -74,7 +75,7 @@ class MedicamentoDAO:
 
                 SELECT med_id, med_codBarras, med_nombreGen, med_nombreComer,
                 med_lab, med_origen, med_concentracion, med_formaFarma, med_viaAdmi,
-                med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id, cat_id, med_imagen
+                med_lote, med_fechaCad, med_fraccion, med_precio, med_existencia, prov_id, cat_id, med_imagen, med_tipoMedicamento
                 FROM medicamentos WHERE med_id = %s
 
             """
@@ -90,7 +91,8 @@ class MedicamentoDAO:
                     med_nombreComer=f[3], med_lab=f[4], med_origen=f[5],
                     med_concentracion=f[6], med_formaFarma=f[7], med_viaAdmi=f[8],
                     med_lote=f[9], med_fechaCad=f[10], med_fraccion=f[11],
-                    med_precio=f[12], med_existencia=f[13], prov_id=f[14], cat_id=f[15], med_imagen=f[16]
+                    med_precio=f[12], med_existencia=f[13], prov_id=f[14], cat_id=f[15], med_imagen=f[16],
+                    med_tipoMedicamento=f[17]
                 )
             return None
         
@@ -140,7 +142,8 @@ class MedicamentoDAO:
                 SET med_codBarras = %s, med_nombreGen = %s, med_nombreComer = %s,
                 med_lab = %s, med_origen = %s, med_concentracion = %s, med_formaFarma = %s,
                 med_viaAdmi = %s, med_lote = %s, med_fechaCad = %s, med_fraccion = %s,
-                med_precio = %s, med_existencia = %s, prov_id = %s, cat_id = %s, med_imagen = %s
+                med_precio = %s, med_existencia = %s, prov_id = %s, cat_id = %s, med_imagen = %s,
+                med_tipoMedicamento = %s
 
                 WHERE med_id=%s
             """
@@ -153,7 +156,7 @@ class MedicamentoDAO:
                 med.med_lab, med.med_origen, med.med_concentracion,
                 med.med_formaFarma, med.med_viaAdmi, med.med_lote,
                 med.med_fechaCad, med.med_fraccion, med.med_precio,
-                med.med_existencia, med.prov_id, med.cat_id, med.med_imagen, med.med_id
+                med.med_existencia, med.prov_id, med.cat_id, med.med_imagen, med.med_tipoMedicamento, med.med_id
 
             ))
             conn.commit()
@@ -231,3 +234,21 @@ class MedicamentoDAO:
             print("Error al obtener medicamentos con bajo stock")
             print(e)
             return []
+
+    @staticmethod
+    def contar_por_proveedor(prov_id):
+        try:
+            sql = "SELECT COUNT(*) FROM medicamentos WHERE prov_id = %s"
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql, (prov_id,))
+            total = cur.fetchone()[0]
+            cur.close()
+            return total
+
+        except Exception as e:
+            Conexion.obtener_conexion().rollback()
+            print("Error al contar medicamentos por proveedor")
+            print(e)
+            return 0

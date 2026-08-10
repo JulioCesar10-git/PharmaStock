@@ -220,4 +220,21 @@ class ProductoDAO:
             print("Error al obtener productos con bajo stock")
             print(e)
             return []
-    
+
+    @staticmethod
+    def contar_por_proveedor(prov_id):
+        try:
+            sql = "SELECT COUNT(*) FROM productos WHERE prov_id = %s"
+            conn = Conexion.obtener_conexion()
+            conn.rollback()
+            cur = conn.cursor()
+            cur.execute(sql, (prov_id,))
+            total = cur.fetchone()[0]
+            cur.close()
+            return total
+
+        except Exception as e:
+            Conexion.obtener_conexion().rollback()
+            print("Error al contar productos por proveedor")
+            print(e)
+            return 0
